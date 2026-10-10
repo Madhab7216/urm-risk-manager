@@ -1,0 +1,1168 @@
+TAP version 13
+# Subtest: fresh account profile binds broker, login, model, limited-risk flag and deposit currency
+ok 1 - fresh account profile binds broker, login, model, limited-risk flag and deposit currency
+  ---
+  duration_ms: 2.081369
+  type: 'test'
+  ...
+# Subtest: missing account type or limited-risk flag is not guessed
+ok 2 - missing account type or limited-risk flag is not guessed
+  ---
+  duration_ms: 0.313864
+  type: 'test'
+  ...
+# Subtest: account mode and limited-risk account are blocked unless the supported mode is confirmed
+ok 3 - account mode and limited-risk account are blocked unless the supported mode is confirmed
+  ---
+  duration_ms: 0.299545
+  type: 'test'
+  ...
+# Subtest: two account refresh responses can be compared to detect an account switch during load
+ok 4 - two account refresh responses can be compared to detect an account switch during load
+  ---
+  duration_ms: 0.342934
+  type: 'test'
+  ...
+# Subtest: account snapshot ages out and future timestamp is invalid
+ok 5 - account snapshot ages out and future timestamp is invalid
+  ---
+  duration_ms: 0.378927
+  type: 'test'
+  ...
+# Subtest: account identity and currency must be stable across the two account/group snapshots
+ok 6 - account identity and currency must be stable across the two account/group snapshots
+  ---
+  duration_ms: 0.332322
+  type: 'test'
+  ...
+# Subtest: broker minimum distance check uses close-side quote and documented point unit
+ok 7 - broker minimum distance check uses close-side quote and documented point unit
+  ---
+  duration_ms: 1.99981
+  type: 'test'
+  ...
+# Subtest: SELL checks are mirrored against Ask
+ok 8 - SELL checks are mirrored against Ask
+  ---
+  duration_ms: 0.321511
+  type: 'test'
+  ...
+# Subtest: missing SL/TP distance data does not pass
+ok 9 - missing SL/TP distance data does not pass
+  ---
+  duration_ms: 1.489272
+  type: 'test'
+  ...
+# Subtest: wrong-side protection and distance shorter than broker minimum are rejected
+ok 10 - wrong-side protection and distance shorter than broker minimum are rejected
+  ---
+  duration_ms: 0.479186
+  type: 'test'
+  ...
+# Subtest: disabled or unverified symbols fail closed
+ok 11 - disabled or unverified symbols fail closed
+  ---
+  duration_ms: 0.374567
+  type: 'test'
+  ...
+# Subtest: TickSize evidence helper rejects missing, unchecked and stale values
+ok 12 - TickSize evidence helper rejects missing, unchecked and stale values
+  ---
+  duration_ms: 0.572967
+  type: 'test'
+  ...
+# Subtest: calibration cBot is explicitly Demo-only and read-only
+ok 13 - calibration cBot is explicitly Demo-only and read-only
+  ---
+  duration_ms: 3.933811
+  type: 'test'
+  ...
+# Subtest: probe uses cTrader authoritative tick, pip, volume and monetary risk APIs
+ok 14 - probe uses cTrader authoritative tick, pip, volume and monetary risk APIs
+  ---
+  duration_ms: 0.330554
+  type: 'test'
+  ...
+# Subtest: probe never emits raw account number or full labels
+ok 15 - probe never emits raw account number or full labels
+  ---
+  duration_ms: 0.487552
+  type: 'test'
+  ...
+# Subtest: snapshot protocol includes matching begin/end and diagnostic-only note
+ok 16 - snapshot protocol includes matching begin/end and diagnostic-only note
+  ---
+  duration_ms: 0.200217
+  type: 'test'
+  ...
+# Subtest: probe uses a fixed USD 10 target and rounds volume down
+ok 17 - probe uses a fixed USD 10 target and rounds volume down
+  ---
+  duration_ms: 0.328652
+  type: 'test'
+  ...
+# Subtest: probe preserves signed free-margin data and rechecks account/server context before END
+ok 18 - probe preserves signed free-margin data and rechecks account/server context before END
+  ---
+  duration_ms: 0.435326
+  type: 'test'
+  ...
+# Subtest: calibration cBot does not emit a completed snapshot after a context-change guard
+ok 19 - calibration cBot does not emit a completed snapshot after a context-change guard
+  ---
+  duration_ms: 0.553435
+  type: 'test'
+  ...
+# Subtest: risk calibration blocks structural stops and current quotes that are off the platform tick grid
+ok 20 - risk calibration blocks structural stops and current quotes that are off the platform tick grid
+  ---
+  duration_ms: 0.216415
+  type: 'test'
+  ...
+# Subtest: valid Demo report is parsed as diagnostic only and never unlocks execution
+ok 21 - valid Demo report is parsed as diagnostic only and never unlocks execution
+  ---
+  duration_ms: 5.85374
+  type: 'test'
+  ...
+# Subtest: empty input and missing marker fail closed
+ok 22 - empty input and missing marker fail closed
+  ---
+  duration_ms: 0.29199
+  type: 'test'
+  ...
+# Subtest: stale report is rejected
+ok 23 - stale report is rejected
+  ---
+  duration_ms: 0.880455
+  type: 'test'
+  ...
+# Subtest: future report is rejected
+ok 24 - future report is rejected
+  ---
+  duration_ms: 0.282526
+  type: 'test'
+  ...
+# Subtest: Live account report is blocked
+ok 25 - Live account report is blocked
+  ---
+  duration_ms: 0.411441
+  type: 'test'
+  ...
+# Subtest: expected symbol mismatch is rejected
+ok 26 - expected symbol mismatch is rejected
+  ---
+  duration_ms: 0.440469
+  type: 'test'
+  ...
+# Subtest: missing END record is rejected
+ok 27 - missing END record is rejected
+  ---
+  duration_ms: 0.257464
+  type: 'test'
+  ...
+# Subtest: duplicate SYMBOL record is rejected
+ok 28 - duplicate SYMBOL record is rejected
+  ---
+  duration_ms: 0.633872
+  type: 'test'
+  ...
+# Subtest: cross-snapshot row mix is rejected
+ok 29 - cross-snapshot row mix is rejected
+  ---
+  duration_ms: 0.805808
+  type: 'test'
+  ...
+# Subtest: inventory row count mismatch is rejected
+ok 30 - inventory row count mismatch is rejected
+  ---
+  duration_ms: 1.213381
+  type: 'test'
+  ...
+# Subtest: invalid tick grid and bad symbol metadata are rejected
+ok 31 - invalid tick grid and bad symbol metadata are rejected
+  ---
+  duration_ms: 1.543496
+  type: 'test'
+  ...
+# Subtest: risk budget must remain exactly USD 10
+ok 32 - risk budget must remain exactly USD 10
+  ---
+  duration_ms: 0.793027
+  type: 'test'
+  ...
+# Subtest: disconnected server is rejected
+ok 33 - disconnected server is rejected
+  ---
+  duration_ms: 0.405654
+  type: 'test'
+  ...
+# Subtest: bad URI-encoded symbol field is rejected
+ok 34 - bad URI-encoded symbol field is rejected
+  ---
+  duration_ms: 0.42159
+  type: 'test'
+  ...
+# Subtest: zero or negative position volume is rejected
+ok 35 - zero or negative position volume is rejected
+  ---
+  duration_ms: 0.362142
+  type: 'test'
+  ...
+# Subtest: trade manager evidence cannot authenticate pasted report
+ok 36 - trade manager evidence cannot authenticate pasted report
+  ---
+  duration_ms: 0.353294
+  type: 'test'
+  ...
+# Subtest: negative free margin is preserved as signed diagnostic metadata
+ok 37 - negative free margin is preserved as signed diagnostic metadata
+  ---
+  duration_ms: 0.555524
+  type: 'test'
+  ...
+# Subtest: missing or malformed terminal NOTE fails closed
+ok 38 - missing or malformed terminal NOTE fails closed
+  ---
+  duration_ms: 0.269297
+  type: 'test'
+  ...
+# Subtest: any explicit BLOCK record makes the snapshot non-parseable as complete
+ok 39 - any explicit BLOCK record makes the snapshot non-parseable as complete
+  ---
+  duration_ms: 0.202704
+  type: 'test'
+  ...
+# Subtest: a readiness status cannot conceal estimated risk above the USD 10 target
+ok 40 - a readiness status cannot conceal estimated risk above the USD 10 target
+  ---
+  duration_ms: 0.356432
+  type: 'test'
+  ...
+# Subtest: duplicate position or pending-order IDs are rejected
+ok 41 - duplicate position or pending-order IDs are rejected
+  ---
+  duration_ms: 0.251371
+  type: 'test'
+  ...
+# Subtest: timestamp without explicit UTC designator is rejected
+ok 42 - timestamp without explicit UTC designator is rejected
+  ---
+  duration_ms: 0.18832
+  type: 'test'
+  ...
+# Subtest: unmasked account identifiers are rejected by the report parser
+ok 43 - unmasked account identifiers are rejected by the report parser
+  ---
+  duration_ms: 0.178792
+  type: 'test'
+  ...
+# Subtest: manual evidence captures kind, account, symbol, exact value/source and timestamps
+ok 44 - manual evidence captures kind, account, symbol, exact value/source and timestamps
+  ---
+  duration_ms: 2.522134
+  type: 'test'
+  ...
+# Subtest: missing evidence or source is rejected
+ok 45 - missing evidence or source is rejected
+  ---
+  duration_ms: 0.465086
+  type: 'test'
+  ...
+# Subtest: changing account, symbol, value or source invalidates evidence
+ok 46 - changing account, symbol, value or source invalidates evidence
+  ---
+  duration_ms: 0.512344
+  type: 'test'
+  ...
+# Subtest: observed FX data ages from declared observation time, not checkbox click time
+ok 47 - observed FX data ages from declared observation time, not checkbox click time
+  ---
+  duration_ms: 0.392773
+  type: 'test'
+  ...
+# Subtest: future timestamps, impossible age and future-attested evidence fail closed
+ok 48 - future timestamps, impossible age and future-attested evidence fail closed
+  ---
+  duration_ms: 0.587502
+  type: 'test'
+  ...
+# Subtest: commission evidence expires after 24 hours and price-risk preview remains separate
+ok 49 - commission evidence expires after 24 hours and price-risk preview remains separate
+  ---
+  duration_ms: 0.276304
+  type: 'test'
+  ...
+# Subtest: account context requires broker, login, model, limited-risk flag and currency
+ok 50 - account context requires broker, login, model, limited-risk flag and currency
+  ---
+  duration_ms: 0.679246
+  type: 'test'
+  ...
+# Subtest: only standard HEDGED account is supported by preview
+ok 51 - only standard HEDGED account is supported by preview
+  ---
+  duration_ms: 0.2746
+  type: 'test'
+  ...
+# Subtest: client order IDs use URM prefix, are bounded to cTrader 50-character maximum
+ok 52 - client order IDs use URM prefix, are bounded to cTrader 50-character maximum
+  ---
+  duration_ms: 3.637672
+  type: 'test'
+  ...
+# Subtest: market order intent includes protocol relative SL/TP and unique clientOrderId
+ok 53 - market order intent includes protocol relative SL/TP and unique clientOrderId
+  ---
+  duration_ms: 1.978451
+  type: 'test'
+  ...
+# Subtest: intent blocks absent approval, host connection, user confirmation, stale quote and invalid volume
+ok 54 - intent blocks absent approval, host connection, user confirmation, stale quote and invalid volume
+  ---
+  duration_ms: 0.723355
+  type: 'test'
+  ...
+# Subtest: intent blocks preview mismatch and incorrect BUY/SELL structural SL direction
+ok 55 - intent blocks preview mismatch and incorrect BUY/SELL structural SL direction
+  ---
+  duration_ms: 0.655628
+  type: 'test'
+  ...
+# Subtest: order intent requires fresh, sourced tick-size evidence and rejects off-grid prices
+ok 56 - order intent requires fresh, sourced tick-size evidence and rejects off-grid prices
+  ---
+  duration_ms: 0.836233
+  type: 'test'
+  ...
+# Subtest: intent rejects a relative protection distance that the protocol scale cannot represent exactly
+ok 57 - intent rejects a relative protection distance that the protocol scale cannot represent exactly
+  ---
+  duration_ms: 0.511712
+  type: 'test'
+  ...
+# Subtest: SDK request maps enums and does not synthesize defaults for missing SDK enums
+ok 58 - SDK request maps enums and does not synthesize defaults for missing SDK enums
+  ---
+  duration_ms: 0.582484
+  type: 'test'
+  ...
+# Subtest: limited-risk account requires verified and explicitly requested guaranteed SL for the full lifecycle
+ok 59 - limited-risk account requires verified and explicitly requested guaranteed SL for the full lifecycle
+  ---
+  duration_ms: 2.472878
+  type: 'test'
+  ...
+# Subtest: execution release gate defaults closed and blocks until every gate is true
+ok 60 - execution release gate defaults closed and blocks until every gate is true
+  ---
+  duration_ms: 2.642339
+  type: 'test'
+  ...
+# Subtest: unknown and NETTED account types are blocked unless isolation evidence is explicit
+ok 61 - unknown and NETTED account types are blocked unless isolation evidence is explicit
+  ---
+  duration_ms: 0.95985
+  type: 'test'
+  ...
+# Subtest: submission begins only once and an accepted event is not treated as a fill
+ok 62 - submission begins only once and an accepted event is not treated as a fill
+  ---
+  duration_ms: 0.436626
+  type: 'test'
+  ...
+# Subtest: unrelated events are ignored; matching is never done by symbol/side/price alone
+ok 63 - unrelated events are ignored; matching is never done by symbol/side/price alone
+  ---
+  duration_ms: 1.232237
+  type: 'test'
+  ...
+# Subtest: filled BUY recomputes R from actual fill and requests structural SL plus actual-fill 5R TP
+ok 64 - filled BUY recomputes R from actual fill and requests structural SL plus actual-fill 5R TP
+  ---
+  duration_ms: 1.453854
+  type: 'test'
+  ...
+# Subtest: filled SELL recomputes actual R and 5R TP correctly after slippage
+ok 65 - filled SELL recomputes actual R and 5R TP correctly after slippage
+  ---
+  duration_ms: 0.82266
+  type: 'test'
+  ...
+# Subtest: fill at or beyond structural SL fails closed for manual intervention
+ok 66 - fill at or beyond structural SL fails closed for manual intervention
+  ---
+  duration_ms: 0.587927
+  type: 'test'
+  ...
+# Subtest: fill missing position ID or execution price is never called protected
+ok 67 - fill missing position ID or execution price is never called protected
+  ---
+  duration_ms: 0.310914
+  type: 'test'
+  ...
+# Subtest: wrong symbol or side in a correlated fill requires manual intervention
+ok 68 - wrong symbol or side in a correlated fill requires manual intervention
+  ---
+  duration_ms: 0.511273
+  type: 'test'
+  ...
+# Subtest: confirmed ORDER_REPLACED with exact server SL/TP marks position protected
+ok 69 - confirmed ORDER_REPLACED with exact server SL/TP marks position protected
+  ---
+  duration_ms: 0.477921
+  type: 'test'
+  ...
+# Subtest: missing or mismatched server protection values never mark position protected
+ok 70 - missing or mismatched server protection values never mark position protected
+  ---
+  duration_ms: 0.85848
+  type: 'test'
+  ...
+# Subtest: duplicate eventId is idempotent and cannot issue protection update twice
+ok 71 - duplicate eventId is idempotent and cannot issue protection update twice
+  ---
+  duration_ms: 0.82138
+  type: 'test'
+  ...
+# Subtest: late acceptance event cannot regress post-fill protection state
+ok 72 - late acceptance event cannot regress post-fill protection state
+  ---
+  duration_ms: 0.290032
+  type: 'test'
+  ...
+# Subtest: partial fill blocks retry and new orders until remaining order is reconciled
+ok 73 - partial fill blocks retry and new orders until remaining order is reconciled
+  ---
+  duration_ms: 1.246102
+  type: 'test'
+  ...
+# Subtest: valid partial fill snapshot immediately plans SL/TP protection and keeps remainder unresolved
+ok 74 - valid partial fill snapshot immediately plans SL/TP protection and keeps remainder unresolved
+  ---
+  duration_ms: 0.786526
+  type: 'test'
+  ...
+# Subtest: partial fill with no server-side SL/TP triggers critical alert plus immediate protection request
+ok 75 - partial fill with no server-side SL/TP triggers critical alert plus immediate protection request
+  ---
+  duration_ms: 1.386512
+  type: 'test'
+  ...
+# Subtest: partial fill without a complete open-position snapshot remains blocked and does not send an SLTP request
+ok 76 - partial fill without a complete open-position snapshot remains blocked and does not send an SLTP request
+  ---
+  duration_ms: 0.354943
+  type: 'test'
+  ...
+# Subtest: partial fill rejects closed, mismatched and inconsistent cumulative position snapshots
+ok 77 - partial fill rejects closed, mismatched and inconsistent cumulative position snapshots
+  ---
+  duration_ms: 0.491384
+  type: 'test'
+  ...
+# Subtest: partial protection acknowledgement confirms the open partial position but does not clear remaining-order risk
+ok 78 - partial protection acknowledgement confirms the open partial position but does not clear remaining-order risk
+  ---
+  duration_ms: 1.129157
+  type: 'test'
+  ...
+# Subtest: a second partial fill arriving during an in-flight protection change is queued and applied sequentially
+ok 79 - a second partial fill arriving during an in-flight protection change is queued and applied sequentially
+  ---
+  duration_ms: 0.985417
+  type: 'test'
+  ...
+# Subtest: stale protection acknowledgement volume cannot confirm the latest partial position
+ok 80 - stale protection acknowledgement volume cannot confirm the latest partial position
+  ---
+  duration_ms: 0.770369
+  type: 'test'
+  ...
+# Subtest: new partial fill after unknown protection outcome does not blindly retry the SLTP request
+ok 81 - new partial fill after unknown protection outcome does not blindly retry the SLTP request
+  ---
+  duration_ms: 0.787104
+  type: 'test'
+  ...
+# Subtest: final ORDER_FILLED after partials updates the final VWAP target and only then resolves the order
+ok 82 - final ORDER_FILLED after partials updates the final VWAP target and only then resolves the order
+  ---
+  duration_ms: 0.906498
+  type: 'test'
+  ...
+# Subtest: duplicate deal ID cannot generate a second partial protection change when event ID changes
+ok 83 - duplicate deal ID cannot generate a second partial protection change when event ID changes
+  ---
+  duration_ms: 0.482686
+  type: 'test'
+  ...
+# Subtest: late older partial snapshot cannot regress cumulative execution volume
+ok 84 - late older partial snapshot cannot regress cumulative execution volume
+  ---
+  duration_ms: 0.444712
+  type: 'test'
+  ...
+# Subtest: transport error and timeout lead to unknown outcome, never safe retry
+ok 85 - transport error and timeout lead to unknown outcome, never safe retry
+  ---
+  duration_ms: 0.406271
+  type: 'test'
+  ...
+# Subtest: protection transport error/timeout is not reported as protected
+ok 86 - protection transport error/timeout is not reported as protected
+  ---
+  duration_ms: 0.342625
+  type: 'test'
+  ...
+# Subtest: restart restores active/previously protected positions to mandatory reconciliation
+ok 87 - restart restores active/previously protected positions to mandatory reconciliation
+  ---
+  duration_ms: 0.580049
+  type: 'test'
+  ...
+# Subtest: accepted/rejected lifecycle is correlated without matching other symbols
+ok 88 - accepted/rejected lifecycle is correlated without matching other symbols
+  ---
+  duration_ms: 0.33546
+  type: 'test'
+  ...
+# Subtest: coordinator never sends an order when persistence is absent or not durable
+ok 89 - coordinator never sends an order when persistence is absent or not durable
+  ---
+  duration_ms: 2.31943
+  type: 'test'
+  ...
+# Subtest: coordinator only sends after every gate and durable SUBMITTING snapshot pass
+ok 90 - coordinator only sends after every gate and durable SUBMITTING snapshot pass
+  ---
+  duration_ms: 0.51878
+  type: 'test'
+  ...
+# Subtest: coordinator does not call SDK if persisting SUBMITTING fails after prepared intent was persisted
+ok 91 - coordinator does not call SDK if persisting SUBMITTING fails after prepared intent was persisted
+  ---
+  duration_ms: 0.669276
+  type: 'test'
+  ...
+# Subtest: coordinator mock flow keeps ACCEPTED distinct, then requires position protection confirmation
+ok 92 - coordinator mock flow keeps ACCEPTED distinct, then requires position protection confirmation
+  ---
+  duration_ms: 2.523354
+  type: 'test'
+  ...
+# Subtest: partial fill creates one bounded cancellation intent for the unfilled remainder
+ok 93 - partial fill creates one bounded cancellation intent for the unfilled remainder
+  ---
+  duration_ms: 0.425784
+  type: 'test'
+  ...
+# Subtest: partial fill event without position snapshot still plans one order-remainder cancellation
+ok 94 - partial fill event without position snapshot still plans one order-remainder cancellation
+  ---
+  duration_ms: 0.397315
+  type: 'test'
+  ...
+# Subtest: confirmed cancellation only resolves when cumulative volume and current open position protection match
+ok 95 - confirmed cancellation only resolves when cumulative volume and current open position protection match
+  ---
+  duration_ms: 0.81322
+  type: 'test'
+  ...
+# Subtest: cancellation volume race is not treated as safe terminal state
+ok 96 - cancellation volume race is not treated as safe terminal state
+  ---
+  duration_ms: 0.432195
+  type: 'test'
+  ...
+# Subtest: a new fill event after confirmed cancellation is quarantined for manual reconciliation
+ok 97 - a new fill event after confirmed cancellation is quarantined for manual reconciliation
+  ---
+  duration_ms: 0.547356
+  type: 'test'
+  ...
+# Subtest: cancel rejection leaves the remainder open and never creates an automatic retry
+ok 98 - cancel rejection leaves the remainder open and never creates an automatic retry
+  ---
+  duration_ms: 2.678281
+  type: 'test'
+  ...
+# Subtest: a late cancel-rejected event after full fill cannot regress final protection state
+ok 99 - a late cancel-rejected event after full fill cannot regress final protection state
+  ---
+  duration_ms: 0.401419
+  type: 'test'
+  ...
+# Subtest: cancel acknowledgement can arrive before protection acknowledgement without releasing early
+ok 100 - cancel acknowledgement can arrive before protection acknowledgement without releasing early
+  ---
+  duration_ms: 0.400073
+  type: 'test'
+  ...
+# Subtest: a second partial fill does not generate a duplicate remainder-cancel request
+ok 101 - a second partial fill does not generate a duplicate remainder-cancel request
+  ---
+  duration_ms: 0.380401
+  type: 'test'
+  ...
+# Subtest: cancellation event matched only by client ID but lacking exact order ID cannot confirm cancellation
+ok 102 - cancellation event matched only by client ID but lacking exact order ID cannot confirm cancellation
+  ---
+  duration_ms: 0.484824
+  type: 'test'
+  ...
+# Subtest: cancellation terminal event without an authoritative current position does not clear unresolved state
+ok 103 - cancellation terminal event without an authoritative current position does not clear unresolved state
+  ---
+  duration_ms: 0.521803
+  type: 'test'
+  ...
+# Subtest: coordinator protects the partial position and cancels/reconciles the unfilled remainder
+ok 104 - coordinator protects the partial position and cancels/reconciles the unfilled remainder
+  ---
+  duration_ms: 3.136978
+  type: 'test'
+  ...
+# Subtest: risk-reducing cancel gets one attempt if journal fails during an already-live partial fill, but durable submission stays blocked
+ok 105 - risk-reducing cancel gets one attempt if journal fails during an already-live partial fill, but durable submission stays blocked
+  ---
+  duration_ms: 1.625684
+  type: 'test'
+  ...
+# Subtest: coordinator cancel rejection stays unresolved and duplicate partial events do not retry
+ok 106 - coordinator cancel rejection stays unresolved and duplicate partial events do not retry
+  ---
+  duration_ms: 2.005914
+  type: 'test'
+  ...
+# Subtest: coordinator cancel transport failure is unknown, one-shot and unresolved
+ok 107 - coordinator cancel transport failure is unknown, one-shot and unresolved
+  ---
+  duration_ms: 1.396316
+  type: 'test'
+  ...
+# Subtest: missing SDK cancelOrder method leaves the partial remainder explicitly blocked
+ok 108 - missing SDK cancelOrder method leaves the partial remainder explicitly blocked
+  ---
+  duration_ms: 1.43161
+  type: 'test'
+  ...
+# Subtest: coordinator treats transport errors as unknown and never retries automatically
+ok 109 - coordinator treats transport errors as unknown and never retries automatically
+  ---
+  duration_ms: 1.220508
+  type: 'test'
+  ...
+# Subtest: coordinator records a correlated SDK validation error as rejected, not an unknown fill
+ok 110 - coordinator records a correlated SDK validation error as rejected, not an unknown fill
+  ---
+  duration_ms: 0.701669
+  type: 'test'
+  ...
+# Subtest: post-fill slippage is measured against USD 10 target and emits a separate risk warning
+ok 111 - post-fill slippage is measured against USD 10 target and emits a separate risk warning
+  ---
+  duration_ms: 1.060526
+  type: 'test'
+  ...
+# Subtest: coordinator forwards risk alerts to its configured action handler
+ok 112 - coordinator forwards risk alerts to its configured action handler
+  ---
+  duration_ms: 1.113715
+  type: 'test'
+  ...
+# Subtest: active saved records without verified current account are quarantined and block execution
+ok 113 - active saved records without verified current account are quarantined and block execution
+  ---
+  duration_ms: 1.355922
+  type: 'test'
+  ...
+# Subtest: account-mismatched saved records never enter the active ledger
+ok 114 - account-mismatched saved records never enter the active ledger
+  ---
+  duration_ms: 0.448627
+  type: 'test'
+  ...
+# Subtest: restore counts are scoped to the current call, not prior quarantined records
+ok 115 - restore counts are scoped to the current call, not prior quarantined records
+  ---
+  duration_ms: 0.747568
+  type: 'test'
+  ...
+# Subtest: restore writes one complete snapshot only after all same-account records are loaded
+ok 116 - restore writes one complete snapshot only after all same-account records are loaded
+  ---
+  duration_ms: 0.710113
+  type: 'test'
+  ...
+# Subtest: restore never overwrites a journal when account-mismatched or ambiguous rows are quarantined
+ok 117 - restore never overwrites a journal when account-mismatched or ambiguous rows are quarantined
+  ---
+  duration_ms: 0.44401
+  type: 'test'
+  ...
+# Subtest: repeat restore does not overwrite a newer in-memory record with stale saved state
+ok 118 - repeat restore does not overwrite a newer in-memory record with stale saved state
+  ---
+  duration_ms: 0.371181
+  type: 'test'
+  ...
+# Subtest: coordinator preparation requires the active verified account to match the preview account
+ok 119 - coordinator preparation requires the active verified account to match the preview account
+  ---
+  duration_ms: 0.256563
+  type: 'test'
+  ...
+# Subtest: account switch after preview blocks submission before journal or SDK write
+ok 120 - account switch after preview blocks submission before journal or SDK write
+  ---
+  duration_ms: 0.327495
+  type: 'test'
+  ...
+# Subtest: account switch before an execution event quarantines active records without cross-account writes or SDK calls
+ok 121 - account switch before an execution event quarantines active records without cross-account writes or SDK calls
+  ---
+  duration_ms: 1.051794
+  type: 'test'
+  ...
+# Subtest: account switch during event publication blocks subsequent protection and remainder-cancel SDK calls
+ok 122 - account switch during event publication blocks subsequent protection and remainder-cancel SDK calls
+  ---
+  duration_ms: 1.022246
+  type: 'test'
+  ...
+# Subtest: late protection and cancel responses after an account switch are ignored without cross-account persistence
+ok 123 - late protection and cancel responses after an account switch are ignored without cross-account persistence
+  ---
+  duration_ms: 1.109605
+  type: 'test'
+  ...
+# Subtest: restore into an already-bound coordinator refuses a different active account
+ok 124 - restore into an already-bound coordinator refuses a different active account
+  ---
+  duration_ms: 0.196597
+  type: 'test'
+  ...
+# Subtest: late rejection after fill cannot clear unresolved protection state when position ID is absent from the event
+ok 125 - late rejection after fill cannot clear unresolved protection state when position ID is absent from the event
+  ---
+  duration_ms: 0.327909
+  type: 'test'
+  ...
+# Subtest: rejection after a partial fill remains unresolved and never becomes safely rejected
+ok 126 - rejection after a partial fill remains unresolved and never becomes safely rejected
+  ---
+  duration_ms: 0.379079
+  type: 'test'
+  ...
+# Subtest: restore rejects malformed or overlength clientOrderId values
+ok 127 - restore rejects malformed or overlength clientOrderId values
+  ---
+  duration_ms: 0.295195
+  type: 'test'
+  ...
+# Subtest: UI exposes fixed USD 10 and has no editable risk-amount control
+ok 128 - UI exposes fixed USD 10 and has no editable risk-amount control
+  ---
+  duration_ms: 1.920941
+  type: 'test'
+  ...
+# Subtest: Stage F execution gate is hard-locked and recovery remains non-executable
+ok 129 - Stage F execution gate is hard-locked and recovery remains non-executable
+  ---
+  duration_ms: 0.710269
+  type: 'test'
+  ...
+# Subtest: UI policy display matches approved 2R/3R policy and 5R target
+ok 130 - UI policy display matches approved 2R/3R policy and 5R target
+  ---
+  duration_ms: 0.33718
+  type: 'test'
+  ...
+# Subtest: symbol list requires enabled===true; missing enabled is not treated as tradable
+ok 131 - symbol list requires enabled===true; missing enabled is not treated as tradable
+  ---
+  duration_ms: 0.319307
+  type: 'test'
+  ...
+# Subtest: freshness uses cTrader source timestamp as well as local receipt time
+ok 132 - freshness uses cTrader source timestamp as well as local receipt time
+  ---
+  duration_ms: 0.593016
+  type: 'test'
+  ...
+# Subtest: account refresh cross-checks account identity before accepting currency/profile snapshot
+ok 133 - account refresh cross-checks account identity before accepting currency/profile snapshot
+  ---
+  duration_ms: 0.264252
+  type: 'test'
+  ...
+# Subtest: manual evidence is bound to account, symbol, input value and source with expiry
+ok 134 - manual evidence is bound to account, symbol, input value and source with expiry
+  ---
+  duration_ms: 0.37384
+  type: 'test'
+  ...
+# Subtest: broker SL/TP min-distance fields are consumed, while max-exposure and tick grid are not falsely cleared
+ok 135 - broker SL/TP min-distance fields are consumed, while max-exposure and tick grid are not falsely cleared
+  ---
+  duration_ms: 0.35963
+  type: 'test'
+  ...
+# Subtest: commission stays separate from sizing and execution remains disabled
+ok 136 - commission stays separate from sizing and execution remains disabled
+  ---
+  duration_ms: 0.695575
+  type: 'test'
+  ...
+# Subtest: current official SDK adapter package pattern is used
+ok 137 - current official SDK adapter package pattern is used
+  ---
+  duration_ms: 1.63055
+  type: 'test'
+  ...
+# Subtest: inline Web Plugin module has valid JavaScript syntax
+ok 138 - inline Web Plugin module has valid JavaScript syntax
+  ---
+  duration_ms: 73.883042
+  type: 'test'
+  ...
+# Subtest: pip-value and commission freshness follows declared source observation age, not only checkbox time
+ok 139 - pip-value and commission freshness follows declared source observation age, not only checkbox time
+  ---
+  duration_ms: 0.22695
+  type: 'test'
+  ...
+# Subtest: account refresh errors invalidate all prior account-scoped display and evidence
+ok 140 - account refresh errors invalidate all prior account-scoped display and evidence
+  ---
+  duration_ms: 0.256995
+  type: 'test'
+  ...
+# Subtest: explicitly disabled account group blocks preview and stale identity values are not retained
+ok 141 - explicitly disabled account group blocks preview and stale identity values are not retained
+  ---
+  duration_ms: 0.160803
+  type: 'test'
+  ...
+# Subtest: Stage F preview uses fixed $10 policy, requires account/symbol-bound fresh evidence and 5R TP
+ok 142 - Stage F preview uses fixed $10 policy, requires account/symbol-bound fresh evidence and 5R TP
+  ---
+  duration_ms: 3.571471
+  type: 'test'
+  ...
+# Subtest: Fixed budget cannot be overridden by an extra caller field
+ok 143 - Fixed budget cannot be overridden by an extra caller field
+  ---
+  duration_ms: 0.70113
+  type: 'test'
+  ...
+# Subtest: BUY and SELL stop validation is symmetric
+ok 144 - BUY and SELL stop validation is symmetric
+  ---
+  duration_ms: 0.561504
+  type: 'test'
+  ...
+# Subtest: Unknown account currency blocks preview once exact context/evidence exist
+ok 145 - Unknown account currency blocks preview once exact context/evidence exist
+  ---
+  duration_ms: 0.69075
+  type: 'test'
+  ...
+# Subtest: Non-USD preview requires source, checked box, correct context and fresh FX rate
+ok 146 - Non-USD preview requires source, checked box, correct context and fresh FX rate
+  ---
+  duration_ms: 0.639971
+  type: 'test'
+  ...
+# Subtest: Missing or changed pip evidence does not pass because the checkbox alone is not evidence
+ok 147 - Missing or changed pip evidence does not pass because the checkbox alone is not evidence
+  ---
+  duration_ms: 0.251609
+  type: 'test'
+  ...
+# Subtest: Pip evidence is invalidated by account, symbol, value or source changes
+ok 148 - Pip evidence is invalidated by account, symbol, value or source changes
+  ---
+  duration_ms: 0.78593
+  type: 'test'
+  ...
+# Subtest: Minimum-size case blocks when rounding up would exceed fixed budget
+ok 149 - Minimum-size case blocks when rounding up would exceed fixed budget
+  ---
+  duration_ms: 0.51698
+  type: 'test'
+  ...
+# Subtest: Commission is separate, context-bound and only estimated after fresh manual attestation
+ok 150 - Commission is separate, context-bound and only estimated after fresh manual attestation
+  ---
+  duration_ms: 0.698818
+  type: 'test'
+  ...
+# Subtest: Invalid commission evidence never blocks price-risk sizing and never shows a false estimate
+ok 151 - Invalid commission evidence never blocks price-risk sizing and never shows a false estimate
+  ---
+  duration_ms: 1.355396
+  type: 'test'
+  ...
+# Subtest: Risk ladder constants match approved policy
+ok 152 - Risk ladder constants match approved policy
+  ---
+  duration_ms: 0.370353
+  type: 'test'
+  ...
+# Subtest: policy constants match approved URM risk model
+ok 153 - policy constants match approved URM risk model
+  ---
+  duration_ms: 2.230617
+  type: 'test'
+  ...
+# Subtest: URM label encodes and recovers client order ID and structural stop
+ok 154 - URM label encodes and recovers client order ID and structural stop
+  ---
+  duration_ms: 2.068355
+  type: 'test'
+  ...
+# Subtest: label codec rejects invalid IDs, invalid SL, unsupported schema and overlong strings
+ok 155 - label codec rejects invalid IDs, invalid SL, unsupported schema and overlong strings
+  ---
+  duration_ms: 0.374566
+  type: 'test'
+  ...
+# Subtest: BUY +1R proposes break-even and 5R take profit
+ok 156 - BUY +1R proposes break-even and 5R take profit
+  ---
+  duration_ms: 1.653627
+  type: 'test'
+  ...
+# Subtest: BUY +2R locks +1.7R
+ok 157 - BUY +2R locks +1.7R
+  ---
+  duration_ms: 0.499295
+  type: 'test'
+  ...
+# Subtest: BUY +3R activates trailing with +2R floor
+ok 158 - BUY +3R activates trailing with +2R floor
+  ---
+  duration_ms: 0.287602
+  type: 'test'
+  ...
+# Subtest: BUY +3.5R trails to +2.5R
+ok 159 - BUY +3.5R trails to +2.5R
+  ---
+  duration_ms: 0.367066
+  type: 'test'
+  ...
+# Subtest: trailing retains high-water peak through a pullback
+ok 160 - trailing retains high-water peak through a pullback
+  ---
+  duration_ms: 0.361877
+  type: 'test'
+  ...
+# Subtest: restart heuristic infers trailing floor from an existing +2.5R server SL
+ok 161 - restart heuristic infers trailing floor from an existing +2.5R server SL
+  ---
+  duration_ms: 0.961033
+  type: 'test'
+  ...
+# Subtest: confirmed SL is never moved backwards if it is more protective than new target
+ok 162 - confirmed SL is never moved backwards if it is more protective than new target
+  ---
+  duration_ms: 0.626044
+  type: 'test'
+  ...
+# Subtest: SELL +1R mirrors BUY break-even and TP direction
+ok 163 - SELL +1R mirrors BUY break-even and TP direction
+  ---
+  duration_ms: 0.441823
+  type: 'test'
+  ...
+# Subtest: SELL +2R locks +1.7R with mirrored price direction
+ok 164 - SELL +2R locks +1.7R with mirrored price direction
+  ---
+  duration_ms: 0.331413
+  type: 'test'
+  ...
+# Subtest: SELL +3.5R trailing mirrors BUY
+ok 165 - SELL +3.5R trailing mirrors BUY
+  ---
+  duration_ms: 1.502245
+  type: 'test'
+  ...
+# Subtest: TP boundary is reconciliation-required, not normal trailing
+ok 166 - TP boundary is reconciliation-required, not normal trailing
+  ---
+  duration_ms: 0.55026
+  type: 'test'
+  ...
+# Subtest: missing current server SL raises a protection warning even when the target math is valid
+ok 167 - missing current server SL raises a protection warning even when the target math is valid
+  ---
+  duration_ms: 0.511848
+  type: 'test'
+  ...
+# Subtest: target at or through current executable price requires manual reconciliation
+ok 168 - target at or through current executable price requires manual reconciliation
+  ---
+  duration_ms: 0.191387
+  type: 'test'
+  ...
+# Subtest: invalid side, SL direction, tick size evidence and peak values fail closed
+ok 169 - invalid side, SL direction, tick size evidence and peak values fail closed
+  ---
+  duration_ms: 0.232675
+  type: 'test'
+  ...
+# Subtest: initial BUY stop rounds towards entry to avoid increasing planned price-risk
+ok 170 - initial BUY stop rounds towards entry to avoid increasing planned price-risk
+  ---
+  duration_ms: 0.46803
+  type: 'test'
+  ...
+# Subtest: BUY profit-lock stop rounds down to a valid grid point
+ok 171 - BUY profit-lock stop rounds down to a valid grid point
+  ---
+  duration_ms: 0.188309
+  type: 'test'
+  ...
+# Subtest: position label is rejected for wrong symbol or structural SL on wrong side of actual fill
+ok 172 - position label is rejected for wrong symbol or structural SL on wrong side of actual fill
+  ---
+  duration_ms: 0.3204
+  type: 'test'
+  ...
+# Subtest: C\# observer policy constants match approved R ladder and storage keys are bounded
+ok 173 - C\# observer policy constants match approved R ladder and storage keys are bounded
+  ---
+  duration_ms: 0.338499
+  type: 'test'
+  ...
+# Subtest: C\# observer is read-only, persists account-scoped peak state, and blocks ambiguous restart recovery
+ok 174 - C\# observer is read-only, persists account-scoped peak state, and blocks ambiguous restart recovery
+  ---
+  duration_ms: 0.343583
+  type: 'test'
+  ...
+# Subtest: policy is frozen and matches the approved v1.0 baseline
+ok 175 - policy is frozen and matches the approved v1.0 baseline
+  ---
+  duration_ms: 1.507564
+  type: 'test'
+  ...
+# Subtest: volume sizing uses fixed budget, step-rounds down and reports estimated risk
+ok 176 - volume sizing uses fixed budget, step-rounds down and reports estimated risk
+  ---
+  duration_ms: 0.505879
+  type: 'test'
+  ...
+# Subtest: volume sizing blocks when minimum valid size would exceed budget
+ok 177 - volume sizing blocks when minimum valid size would exceed budget
+  ---
+  duration_ms: 0.16287
+  type: 'test'
+  ...
+# Subtest: volume sizing caps above symbol maximum and makes lower risk explicit
+ok 178 - volume sizing caps above symbol maximum and makes lower risk explicit
+  ---
+  duration_ms: 0.126737
+  type: 'test'
+  ...
+# Subtest: volume sizing rejects invalid/non-finite inputs without throwing
+ok 179 - volume sizing rejects invalid/non-finite inputs without throwing
+  ---
+  duration_ms: 0.307756
+  type: 'test'
+  ...
+# Subtest: USD risk budget is fixed at $10 and requires confirmed account currency
+ok 180 - USD risk budget is fixed at $10 and requires confirmed account currency
+  ---
+  duration_ms: 0.330295
+  type: 'test'
+  ...
+# Subtest: non-USD risk budget requires verified, fresh, auditable conversion
+ok 181 - non-USD risk budget requires verified, fresh, auditable conversion
+  ---
+  duration_ms: 0.296436
+  type: 'test'
+  ...
+# Subtest: fixed-USD sizing wrapper blocks unverified pip value and fixes target at $10
+ok 182 - fixed-USD sizing wrapper blocks unverified pip value and fixes target at $10
+  ---
+  duration_ms: 0.553314
+  type: 'test'
+  ...
+# Subtest: fixed-USD sizing converts to non-USD deposit currency before volume sizing
+ok 183 - fixed-USD sizing converts to non-USD deposit currency before volume sizing
+  ---
+  duration_ms: 0.865502
+  type: 'test'
+  ...
+# Subtest: R calculation validates side and the initial stop is on the correct side
+ok 184 - R calculation validates side and the initial stop is on the correct side
+  ---
+  duration_ms: 0.47164
+  type: 'test'
+  ...
+# Subtest: R stop ladder obeys all exact boundaries and 5R TP boundary
+ok 185 - R stop ladder obeys all exact boundaries and 5R TP boundary
+  ---
+  duration_ms: 0.396152
+  type: 'test'
+  ...
+# Subtest: management proposes BE and locks at the correct triggers
+ok 186 - management proposes BE and locks at the correct triggers
+  ---
+  duration_ms: 0.271562
+  type: 'test'
+  ...
+# Subtest: management handles skipped thresholds in one most-protective decision
+ok 187 - management handles skipped thresholds in one most-protective decision
+  ---
+  duration_ms: 0.13901
+  type: 'test'
+  ...
+# Subtest: management preserves favourable-only high-water stop across pullback
+ok 188 - management preserves favourable-only high-water stop across pullback
+  ---
+  duration_ms: 0.128604
+  type: 'test'
+  ...
+# Subtest: management never proposes a less protective redundant update
+ok 189 - management never proposes a less protective redundant update
+  ---
+  duration_ms: 0.092254
+  type: 'test'
+  ...
+# Subtest: management blocks untrusted anchor and reconciles TP boundary
+ok 190 - management blocks untrusted anchor and reconciles TP boundary
+  ---
+  duration_ms: 1.267304
+  type: 'test'
+  ...
+# Subtest: BUY and SELL price targets mirror each other and reject invalid prices
+ok 191 - BUY and SELL price targets mirror each other and reject invalid prices
+  ---
+  duration_ms: 0.143274
+  type: 'test'
+  ...
+# Subtest: deterministic sizing property sweep never exceeds budget when result is approved
+ok 192 - deterministic sizing property sweep never exceeds budget when result is approved
+  ---
+  duration_ms: 1.917996
+  type: 'test'
+  ...
+# Subtest: confirmed stop level is monotonic through a favourable run and pullback
+ok 193 - confirmed stop level is monotonic through a favourable run and pullback
+  ---
+  duration_ms: 0.947376
+  type: 'test'
+  ...
+1..193
+# tests 193
+# suites 0
+# pass 193
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 513.546839

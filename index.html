@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>URM Advanced Risk Manager — Stage G v1.0</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#111c2f;--line:#25344d;--muted:#9db0ca;--text:#ecf3ff;--blue:#6fb7ff;--green:#3dd598;--red:#ff707a;--amber:#f4be5e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,Segoe UI,Arial,sans-serif}main{max-width:900px;margin:auto;padding:14px;display:grid;gap:12px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.brand{font-weight:800;font-size:18px;letter-spacing:.2px}.sub{color:var(--muted);font-size:12px}.pill{border:1px solid var(--line);border-radius:99px;padding:5px 9px;color:var(--muted);white-space:nowrap}.pill.ok{color:var(--green);border-color:#206b55}.pill.bad{color:var(--red);border-color:#76313b}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}.card h2{font-size:13px;margin:0 0 12px;color:#cfe2ff;text-transform:uppercase;letter-spacing:.09em}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}.field label{font-size:12px;color:var(--muted)}input,select{width:100%;min-width:0;background:#0b1424;color:var(--text);border:1px solid #31425d;border-radius:8px;padding:9px;font:inherit;outline:none}input:focus,select:focus{border-color:var(--blue)}input:disabled{opacity:.65}.btn{border:0;border-radius:9px;padding:11px 13px;font-weight:800;cursor:pointer;background:var(--blue);color:#061322;width:100%}.btn:disabled{opacity:.4;cursor:not-allowed}.btn.secondary{background:#21334c;color:var(--text);border:1px solid #334963}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.metric{background:#0b1424;border:1px solid var(--line);border-radius:10px;padding:10px;min-width:0}.metric span{display:block;font-size:11px;color:var(--muted)}.metric strong{display:block;font-size:17px;margin-top:3px;overflow-wrap:anywhere}.warning{border:1px solid #785a23;background:#302511;color:#ffe5a8;padding:10px;border-radius:9px;font-size:12px}.good{border:1px solid #216b55;background:#102a25;color:#bbf6de;padding:10px;border-radius:9px;font-size:12px}.check{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted);margin:10px 0}.check input{width:auto;margin-top:3px}.logs{max-height:190px;overflow:auto;background:#08101c;border:1px solid var(--line);border-radius:8px;padding:9px;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.policy{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.step{background:#0b1424;border:1px solid var(--line);border-radius:8px;padding:9px}.step b{display:block}.step span{color:var(--muted);font-size:11px}.small{font-size:11px;color:var(--muted)}.inline-value{font-size:15px;font-weight:800;color:var(--green)}.hide{display:none!important}@media(max-width:620px){main{padding:9px}.grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.policy{grid-template-columns:repeat(2,1fr)}.top{align-items:flex-start;flex-direction:column}.row{gap:8px}}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div>
+      <div class="brand">URM <span style="color:var(--blue)">ADVANCED</span> <span class="sub">cTrader Web Plugin · Stage G v1.0</span></div>
+      <div class="sub">Fixed-risk preview · time-bound account/symbol evidence · execution disabled in this build</div>
+    </div>
+    <div id="connection" class="pill">Connecting to cTrader…</div>
+  </header>
+
+  <section class="card">
+    <h2>Account & live market</h2>
+    <div class="metrics">
+      <div class="metric"><span>Account currency</span><strong id="currency">—</strong></div>
+      <div class="metric"><span>Balance</span><strong id="balance">—</strong></div>
+      <div class="metric"><span>Equity</span><strong id="equity">—</strong></div>
+      <div class="metric"><span>Broker</span><strong id="brokerName">—</strong></div>
+      <div class="metric"><span>Account model</span><strong id="accountModel">—</strong></div>
+      <div class="metric"><span>Selected symbol</span><strong id="symdisplay">—</strong></div>
+      <div class="metric"><span>Bid</span><strong id="bid">—</strong></div>
+      <div class="metric"><span>Ask</span><strong id="ask">—</strong></div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Trade setup</h2>
+      <div class="field"><label for="symbol">Tradable symbol</label><select id="symbol" disabled><option>Loading symbols…</option></select></div>
+      <div class="row">
+        <div class="field"><label for="side">Direction</label><select id="side"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
+        <div class="field"><label>Fixed target price risk</label><div class="inline-value">$10.00 USD / trade</div><div class="small">Not editable · commission is separate</div></div>
+      </div>
+      <div class="field"><label for="slPrice">Structural SL reference price (OB / invalidation)</label><input id="slPrice" type="number" step="any" placeholder="Enter planned SL price"></div>
+      <div class="row">
+        <div class="field"><label for="pipValue">Pip value per 1.00 lot (deposit currency)</label><input id="pipValue" type="number" min="0" step="any" placeholder="Broker-verified pip value"></div>
+        <div class="field"><label for="pipSource">Pip-value source / instrument spec</label><input id="pipSource" type="text" maxlength="160" placeholder="Broker/specification/source"></div>
+      </div>
+      <div class="field"><label for="pipAgeMinutes">Age of pip-value observation (minutes; must be ≤ 15)</label><input id="pipAgeMinutes" type="number" min="0" step="any" placeholder="0 if verified just now"></div>
+      <label class="check"><input type="checkbox" id="pipVerified"><span>I have verified the pip value for this exact symbol, account and broker.</span></label>
+      <div id="fxBox" class="card" style="padding:10px;margin:8px 0 10px;background:#0d1728">
+        <div class="small" style="margin-bottom:8px">USD risk conversion for a non-USD account. Rate units: deposit-currency units per 1 USD. Manual conversion must be verified and no older than 15 minutes.</div>
+        <div class="row">
+          <div class="field"><label for="usdFx">Deposit currency per 1 USD</label><input id="usdFx" type="number" min="0" step="any" value="1"></div>
+          <div class="field"><label for="fxAgeMinutes">Rate age (minutes)</label><input id="fxAgeMinutes" type="number" min="0" step="any" placeholder="e.g. 2"></div>
+        </div>
+        <div class="field"><label for="fxSource">FX conversion source</label><input id="fxSource" type="text" maxlength="160" placeholder="Verified source / broker rate"></div>
+        <label class="check"><input type="checkbox" id="fxVerified"><span>I verified this USD-to-deposit-currency rate and its age.</span></label>
+        <div id="fxUsdMessage" class="small">Waiting for confirmed account currency.</div>
+      </div>
+      <div class="warning" id="currencyWarning">Waiting for account currency, live quote and symbol specifications. Preview will stay blocked until required inputs are verified.</div>
+      <div class="warning" id="accountModelWarning">Account model is not yet verified. Only standard HEDGED accounts are supported by this preview.</div>
+      <div class="warning" id="brokerConstraintWarning">Broker minimum SL/TP distance validation is not complete. Max exposure cannot be verified without an authoritative open-position snapshot.</div>
+      <div class="warning" id="tickGridWarning">Price-grid blocker: the Web Plugin ProtoSymbol model does not expose a trusted TickSize field. Do not infer tick size from decimal digits. A host/C#-provided per-symbol TickSize plus Demo price-grid tests are required before order preparation can be enabled.</div>
+    </section>
+
+    <section class="card">
+      <h2>Risk preview</h2>
+      <div class="metrics">
+        <div class="metric"><span>Entry estimate</span><strong id="entry">—</strong></div>
+        <div class="metric"><span>SL distance</span><strong id="distance">—</strong></div>
+        <div class="metric"><span>TP target (5R)</span><strong id="target">—</strong></div>
+        <div class="metric"><span>Lots estimate</span><strong id="lots">—</strong></div>
+        <div class="metric"><span>Volume (protocol cents)</span><strong id="volume">—</strong></div>
+        <div class="metric"><span>Target budget</span><strong id="riskBudget">$10.00 USD</strong></div>
+        <div class="metric"><span>Estimated price risk</span><strong id="riskEstimate">—</strong></div>
+        <div class="metric"><span>Estimated price risk (USD)</span><strong id="riskUsdEstimate">—</strong></div>
+        <div class="metric"><span>Round-turn commission est.</span><strong id="commissionEstimate">Not verified</strong></div>
+      </div>
+      <div style="height:10px"></div>
+      <button id="preview" class="btn secondary" disabled>Refresh calculation</button>
+      <div style="height:8px"></div>
+      <button id="executionLocked" class="btn" disabled>Order execution locked — Demo validation required</button>
+      <p class="small">Stage G carries forward account/profile gating and adds a separate Demo-only read-only Algo calibration probe plus a local copied-report validator. The probe is not wired to this Web Plugin and its output is not authenticated. This is still preview-only: order submission is disabled. The Web Plugin ProtoSymbol model does not expose authoritative TickSize or a full account inventory; aggregate max-exposure remains unresolved, and C# compilation plus broker-host Demo validation remain outstanding.</p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Commission estimate — kept outside the $10 price-risk budget</h2>
+    <div class="row">
+      <div class="field"><label for="roundTurnCommission">Round-turn commission per 1.00 lot (deposit currency)</label><input id="roundTurnCommission" type="number" min="0" step="any" placeholder="Optional, broker-verified estimate"></div>
+      <div class="field"><label for="commissionSource">Commission schedule source</label><input id="commissionSource" type="text" maxlength="160" placeholder="Broker commission schedule"></div>
+    </div>
+    <div class="field"><label for="commissionAgeHours">Age of commission observation (hours; must be ≤ 24)</label><input id="commissionAgeHours" type="number" min="0" step="any" placeholder="0 if verified just now"></div>
+    <label class="check"><input type="checkbox" id="commissionVerified"><span>I verified that the value is the estimated total for opening and closing 1.00 lot, in this account currency.</span></label>
+    <div class="warning" id="commissionWarning">Commission is not yet verified; no commission estimate will be shown. This does not change the $10 volume calculation.</div>
+    <p class="small">Manual checkbox attestation is bound to the current broker/account, selected symbol (where applicable), exact value and source, and expires after its policy window. This timestamps your attestation; it does not independently verify that the source is genuine or updated. Commission estimate expires after 24 hours, stays outside sizing, and may not cover minimum/per-side fees, tiers, taxes or conversion costs.</p>
+  </section>
+
+  <section class="card">
+    <h2>Approved R-ladder policy</h2>
+    <div class="policy">
+      <div class="step"><b>+1R → 0R</b><span>Move SL to break-even</span></div>
+      <div class="step"><b>+2R → +1.7R</b><span>Lock profit</span></div>
+      <div class="step"><b>+3R → +2R</b><span>Activate 1R trailing</span></div>
+      <div class="step"><b>TP = +5R</b><span>Reconcile position at TP boundary</span></div>
+    </div>
+    <p class="small">This is the approved management policy display only. A live position manager/cBot has not yet been integrated or validated; do not treat these labels as active protection on an open position.</p>
+  </section>
+
+  <section class="card">
+    <h2>Stage G risk, price-grid & calibration status</h2>
+    <div class="metrics">
+      <div class="metric"><span>Order submission</span><strong id="executionGateStatus">LOCKED</strong></div>
+      <div class="metric"><span>Event reconciliation</span><strong id="eventReconciliationStatus">Waiting for host</strong></div>
+      <div class="metric"><span>Broker Demo validation</span><strong>NOT VERIFIED</strong></div>
+    </div>
+    <p class="small">The execution coordinator listens to SDK execution events, but this build has no enabled order control. Its release gates are deliberately false, and its persistence adapter is not configured for trade submission. The Web Plugin SDK symbol metadata available to this build does not provide a trusted TickSize contract; decimal digits are not a substitute. A successful local mock test is not evidence of a broker-host Demo pass. The read-only C# observer is a separate cBot source file and has not yet been compiled or connected to this plugin.</p>
+  </section>
+
+  <section class="card"><h2>SDK status & diagnostics</h2><div id="logs" class="logs">Starting plugin…</div></section>
+</main>
+<script type="module">
+import { createClientAdapter } from "https://esm.sh/@spotware-web-team/sdk-external-api";
+import {
+  getAccountGroupInformation, getAccountInformation, getLightSymbolList, getSymbol,
+  cancelOrder, createNewOrder, executionEvent, handleConfirmEvent, modifyOrderProtection, quoteEvent, registerEvent, ServerInterfaces, subscribeQuotes, unsubscribeQuotes
+} from "https://esm.sh/@spotware-web-team/sdk";
+import { take, tap, catchError } from "https://esm.sh/rxjs";
+import { createLogger } from "https://esm.sh/@veksa/logger";
+import { calculatePluginPreview, MAX_MANUAL_FX_AGE_MS } from "./plugin-policy.mjs";
+import { CTraderExecutionCoordinator } from "./execution-engine.mjs";
+import { createManualEvidence, evaluateAccountSupport, MAX_MANUAL_PIP_VALUE_AGE_MS, MAX_MANUAL_COMMISSION_AGE_MS } from "./evidence-integrity.mjs";
+import { evaluateBrokerConstraints } from "./broker-constraints.mjs";
+import { accountCoreFingerprint, accountSnapshotConsistent, createAccountProfile, isAccountProfileFresh, MAX_ACCOUNT_SNAPSHOT_AGE_MS } from "./account-profile.mjs";
+
+const $ = id => document.getElementById(id);
+const state = {
+  adapter:null, connected:false, symbols:[], symbol:null, meta:null, quote:null,
+  currency:"UNKNOWN", balance:null, equity:null, lastQuoteReceivedAt:0,
+  subscribedSymbolId:null, executionCoordinator:null, accountProfile:null,
+  accountInfoRaw:null, accountGroupCurrency:null, accountRefreshInFlight:false,
+  accountRefreshRequestId:0, refreshCurrencyFirst:null, manualEvidence:{pip:null,fx:null,commission:null}
+};
+const MAX_QUOTE_AGE_MS = 10_000;
+const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? Number(v).toLocaleString(undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}) : "—";
+const num = id => { const value=$(id).value; return value.trim()===''?NaN:Number(value); };
+function log(value) {
+  const line = new Date().toLocaleTimeString() + "  " + (typeof value === "string" ? value : JSON.stringify(value));
+  const old = $('logs').textContent.split("\n");
+  $('logs').textContent = [...old.slice(-90), line].join("\n");
+  $('logs').scrollTop = $('logs').scrollHeight;
+}
+function setConnection(text, ok=false) { $('connection').textContent=text; $('connection').className='pill '+(ok?'ok':'bad'); }
+function deepWalk(root, visitor, depth=0) {
+  if (root == null || depth > 8) return;
+  if (Array.isArray(root)) { for (const x of root) deepWalk(x,visitor,depth+1); return; }
+  if (typeof root !== 'object') return;
+  visitor(root);
+  for (const value of Object.values(root)) if (value && typeof value === 'object') deepWalk(value,visitor,depth+1);
+}
+function findNestedObject(root, pred) { let found=null; deepWalk(root,o=>{if(!found && pred(o)) found=o;}); return found; }
+function normaliseSymbols(result) {
+  // Current ProtoGetLightSymbolListRes exposes a repeated `symbol` field.
+  // Fail closed: an absent `enabled` flag is not treated as enabled.
+  let candidates=[];
+  deepWalk(result,o=>{
+    if(Array.isArray(o.symbol)) candidates.push(...o.symbol);
+    if(Array.isArray(o.symbols)) candidates.push(...o.symbols);
+  });
+  const normal=candidates.map(s=>({
+    id:Number(s.id ?? s.symbolId),
+    name:String(s.name ?? s.symbolName ?? ''),
+    enabled:s.enabled===true,
+    raw:s
+  })).filter(s=>Number.isSafeInteger(s.id)&&s.id>=0&&s.name&&s.enabled);
+  return [...new Map(normal.map(s=>[s.id,s])).values()].sort((a,b)=>a.name.localeCompare(b.name));
+}
+function normaliseMeta(result, symbolId) {
+  const raw=findNestedObject(result,o=>(Number(o.symbolId ?? o.id)===Number(symbolId)) &&
+      Number.isInteger(Number(o.pipPosition)) && Number.isInteger(Number(o.digits)) &&
+      o.lotSize!==undefined && o.minVolume!==undefined && o.maxVolume!==undefined && o.stepVolume!==undefined);
+  if(!raw) return null;
+  return {
+    ...raw,
+    symbolId:Number(raw.symbolId ?? raw.id),
+    enabled:raw.enabled===true,
+    pipPosition:Number(raw.pipPosition),
+    digits:Number(raw.digits),
+    lotSize:Number(raw.lotSize),
+    minVolume:Number(raw.minVolume),
+    maxVolume:Number(raw.maxVolume),
+    stepVolume:Number(raw.stepVolume),
+    slDistancePoints:raw.slDistance===undefined || raw.slDistance===null ? null : Number(raw.slDistance),
+    tpDistancePoints:raw.tpDistance===undefined || raw.tpDistance===null ? null : Number(raw.tpDistance),
+    maxExposureUsdCents:raw.maxExposure===undefined || raw.maxExposure===null ? null : Number(raw.maxExposure),
+    guaranteedStopLoss:raw.guaranteedStopLoss===true,
+    tradingMetadataUpdatedAt:raw.utcLastUpdateTimestamp===undefined ? null : Number(raw.utcLastUpdateTimestamp)
+  };
+}
+function getDigits(meta) { return Number.isInteger(Number(meta?.digits)) ? Number(meta.digits) : 5; }
+function getPipSize(meta) { return Number.isInteger(Number(meta?.pipPosition)) ? Math.pow(10,-Number(meta.pipPosition)) : NaN; }
+function fmtPrice(price) { return Number.isFinite(price) ? Number(price).toFixed(getDigits(state.meta)) : "—"; }
+function currentEntry() {
+  if (!state.quote || !state.symbol) return NaN;
+  return $('side').value==='BUY' ? Number(state.quote.ask) : Number(state.quote.bid);
+}
+function currentSL() { return num('slPrice'); }
+function updateAccountUI() {
+  $('currency').textContent=state.currency;
+  $('brokerName').textContent=state.accountProfile?.brokerName ?? '—';
+  $('accountModel').textContent=state.accountProfile?.accountTypeName ?? '—';
+  $('balance').textContent=state.balance==null?'—':`${fmt(state.balance)} ${state.currency}`;
+  $('equity').textContent=state.equity==null?'—':`${fmt(state.equity)} ${state.currency}`;
+  const isUsd=state.currency==='USD';
+  $('usdFx').disabled=isUsd;
+  $('fxAgeMinutes').disabled=isUsd;
+  $('fxSource').disabled=isUsd;
+  $('fxVerified').disabled=isUsd;
+  if(isUsd){$('usdFx').value='1';$('fxUsdMessage').textContent='USD account confirmed: conversion rate fixed at 1.00.';}
+  else if(state.currency==='UNKNOWN') $('fxUsdMessage').textContent='Waiting for account currency confirmation.';
+  else $('fxUsdMessage').textContent=`${state.currency} account: verified conversion must be no older than ${MAX_MANUAL_FX_AGE_MS/60000} minutes.`;
+}
+function updateQuoteUI() {
+  $('symdisplay').textContent=state.symbol?.name ?? '—';
+  $('bid').textContent=state.quote?fmtPrice(Number(state.quote.bid)):'—';
+  $('ask').textContent=state.quote?fmtPrice(Number(state.quote.ask)):'—';
+}
+function setSymbolSelect(symbols) {
+  $('symbol').innerHTML='';
+  for(const s of symbols){const opt=document.createElement('option');opt.value=String(s.id);opt.textContent=s.name;$('symbol').appendChild(opt);}
+  $('symbol').disabled=symbols.length===0;
+  if(!symbols.length){const opt=document.createElement('option');opt.textContent='No tradable symbols returned';$('symbol').appendChild(opt);}
+}
+function previewInputs() {
+  const entry=currentEntry();
+  return {
+    accountCurrency:state.currency,
+    accountCurrencyConfirmed:state.currency!=='UNKNOWN',
+    accountKey:state.accountProfile?.key ?? '',
+    symbolId:Number(state.symbol?.id),
+    nowMs:Date.now(),
+    side:$('side').value,
+    entry,
+    stopLoss:currentSL(),
+    pipPosition:Number(state.meta?.pipPosition),
+    pipValuePerLot:num('pipValue'),
+    pipValueVerified:$('pipVerified').checked,
+    pipValueSource:$('pipSource').value,
+    pipValueEvidence:state.manualEvidence.pip,
+    depositCurrencyPerUsd:state.currency==='USD'?1:num('usdFx'),
+    fxVerified:state.currency==='USD'||$('fxVerified').checked,
+    fxSource:$('fxSource').value,
+    fxEvidence:state.manualEvidence.fx,
+    lotSizeCents:Number(state.meta?.lotSize ?? 0),
+    minVolumeCents:Number(state.meta?.minVolume ?? 0),
+    maxVolumeCents:Number(state.meta?.maxVolume ?? 0),
+    stepVolumeCents:Number(state.meta?.stepVolume ?? 0),
+    commissionVerified:$('commissionVerified').checked,
+    roundTurnCommissionPerLot:num('roundTurnCommission'),
+    commissionSource:$('commissionSource').value,
+    commissionEvidence:state.manualEvidence.commission
+  };
+}
+function clearPipAndCommissionEvidence({clearValues=false}={}) {
+  state.manualEvidence.pip=null; state.manualEvidence.commission=null;
+  $('pipVerified').checked=false; $('commissionVerified').checked=false;
+  if(clearValues){ $('pipValue').value=''; $('pipSource').value=''; $('pipAgeMinutes').value=''; $('roundTurnCommission').value=''; $('commissionSource').value=''; $('commissionAgeHours').value=''; }
+}
+function clearFxEvidence({clearValues=false}={}) {
+  state.manualEvidence.fx=null; $('fxVerified').checked=false;
+  if(clearValues){ $('usdFx').value=''; $('fxAgeMinutes').value=''; $('fxSource').value=''; }
+}
+function captureEvidence(kind) {
+  const profileFresh=isAccountProfileFresh(state.accountProfile,Date.now(),MAX_ACCOUNT_SNAPSHOT_AGE_MS);
+  const accountSupport=profileFresh?evaluateAccountSupport(state.accountProfile):{ok:false};
+  if(!profileFresh || !accountSupport.ok || (kind!=='fx-rate' && (!state.symbol || state.meta?.enabled!==true))){
+    const id=kind==='pip-value'?'pipVerified':kind==='fx-rate'?'fxVerified':'commissionVerified';
+    $(id).checked=false; state.manualEvidence[kind==='pip-value'?'pip':kind==='fx-rate'?'fx':'commission']=null;
+    log({manualEvidenceRejected:kind,code:'ACCOUNT_OR_SYMBOL_NOT_READY'}); return false;
+  }
+  const accountKey=state.accountProfile?.key;
+  const symbolId=kind==='fx-rate'?null:Number(state.symbol?.id);
+  const common={accountKey,symbolId,nowMs:Date.now()};
+  let args;
+  if(kind==='pip-value') args={...common,kind,value:num('pipValue'),source:$('pipSource').value,observedAgeMs:num('pipAgeMinutes')*60000};
+  else if(kind==='fx-rate') args={...common,kind,value:num('usdFx'),source:$('fxSource').value,observedAgeMs:num('fxAgeMinutes')*60000};
+  else args={...common,kind,value:num('roundTurnCommission'),source:$('commissionSource').value,observedAgeMs:num('commissionAgeHours')*60*60*1000};
+  const result=createManualEvidence(args);
+  if(!result.ok){
+    state.manualEvidence[kind==='pip-value'?'pip':kind==='fx-rate'?'fx':'commission']=null;
+    const id=kind==='pip-value'?'pipVerified':kind==='fx-rate'?'fxVerified':'commissionVerified';
+    $(id).checked=false;
+    log({manualEvidenceRejected:kind,code:result.code});
+    return false;
+  }
+  state.manualEvidence[kind==='pip-value'?'pip':kind==='fx-rate'?'fx':'commission']=result.evidence;
+  log({manualEvidenceAttested:kind,source:result.evidence.source,contextBound:true,attestedAt:new Date(result.evidence.attestedAtMs).toISOString()});
+  return true;
+}
+function traderFromResponse(result) {
+  return findNestedObject(result,o=>(o.Login!==undefined || o.login!==undefined) &&
+    (o.balance!==undefined || o.accountType!==undefined)) ?? null;
+}
+function traderFingerprint(trader) { return trader ? accountCoreFingerprint(trader) : null; }
+function invalidateAccountSnapshot(message, details={}) {
+  state.accountProfile=null; state.balance=null; state.equity=null; state.currency='UNKNOWN';
+  clearPipAndCommissionEvidence({clearValues:true}); clearFxEvidence({clearValues:true});
+  $('accountModelWarning').textContent=message;
+  updateAccountUI(); renderCalculation();
+  if(Object.keys(details).length) log({accountSnapshotInvalidated:true,...details});
+}
+function updateAccountIdentity(firstTrader, secondTrader, currency, balanceResponse) {
+  const fpA=traderFingerprint(firstTrader), fpB=traderFingerprint(secondTrader);
+  if(!accountSnapshotConsistent({firstTrader,firstCurrency:state.refreshCurrencyFirst,secondTrader,secondCurrency:currency})){
+    invalidateAccountSnapshot('Account identity/currency changed or profile fields are incomplete during refresh. Previous account display/evidence has been cleared; preview is blocked.',{accountSnapshotRejected:true,firstFingerprint:fpA,secondFingerprint:fpB,firstCurrency:state.refreshCurrencyFirst,secondCurrency:currency});
+    return false;
+  }
+  const built=createAccountProfile({trader:secondTrader,currency,nowMs:Date.now()});
+  if(!built.ok){
+    invalidateAccountSnapshot(`Account profile not verified [${built.code}]. Required fields are missing; previous account display/evidence cleared and preview blocked.`,{accountProfileCode:built.code});
+    return false;
+  }
+  const priorKey=state.accountProfile?.key;
+  state.accountProfile=built.profile;
+  state.currency=built.profile.currency;
+  pickBalanceEquity(balanceResponse);
+  if(priorKey!==built.profile.key){
+    clearPipAndCommissionEvidence({clearValues:true});
+    clearFxEvidence({clearValues:true});
+    log({accountContextChanged:true,broker:built.profile.brokerName,accountType:built.profile.accountTypeName,currency:built.profile.currency,manualEvidenceCleared:true});
+  }
+  const support=built.support;
+  $('accountModelWarning').textContent=support.ok
+    ? `Account context is consistent across two SDK reads: ${built.profile.accountTypeName}, standard-risk. This is not an atomic snapshot; evidence is bound to this account context and preview only.`
+    : `Preview blocked [${support.code}]: ${support.reason}`;
+  updateAccountUI(); renderCalculation();
+  log({accountContextConsistent:true,broker:built.profile.brokerName,accountType:built.profile.accountTypeName,isLimitedRisk:built.profile.isLimitedRisk,currency:built.profile.currency,agePolicyMs:MAX_ACCOUNT_SNAPSHOT_AGE_MS});
+  return true;
+}
+function showCommission(result) {
+  if(!$('commissionVerified').checked){
+    $('commissionEstimate').textContent='Not verified';
+    $('commissionWarning').textContent='Commission is not verified; it is excluded from the $10 price-risk sizing and no estimate is shown.';
+    return;
+  }
+  if(!result || String(result.commissionStatus??'').startsWith('VERIFICATION_INCOMPLETE')){
+    $('commissionEstimate').textContent='Incomplete';
+    $('commissionWarning').textContent='Add a non-negative round-turn per-lot estimate and its source. Commission remains separate from the $10 price-risk budget.';
+    return;
+  }
+  if(result.commissionEstimate==null){
+    $('commissionEstimate').textContent='Not available';
+    $('commissionWarning').textContent='Commission estimate could not be calculated; check the commission input.';
+    return;
+  }
+  $('commissionEstimate').textContent=`${fmt(result.commissionEstimate)} ${state.currency}`;
+  $('commissionWarning').textContent=`Estimated round-turn commission: ${fmt(result.commissionEstimate)} ${state.currency}. Not included in volume sizing; source: ${result.commissionSource}.`;
+}
+function renderCalculation() {
+  const now=Date.now();
+  const entry=currentEntry(); const sl=currentSL();
+  const quoteAgeMs=state.quote ? now-Number(state.quote.timestamp) : Infinity;
+  const receiveAgeMs=now-state.lastQuoteReceivedAt;
+  const quoteFresh=!!state.quote && Number.isFinite(quoteAgeMs) && quoteAgeMs>=0 && quoteAgeMs<MAX_QUOTE_AGE_MS && receiveAgeMs>=0 && receiveAgeMs<MAX_QUOTE_AGE_MS;
+  const profileFresh=isAccountProfileFresh(state.accountProfile,now,MAX_ACCOUNT_SNAPSHOT_AGE_MS);
+  const accountSupport=profileFresh?evaluateAccountSupport(state.accountProfile):{ok:false,code:'ACCOUNT_PROFILE_STALE',reason:'Account snapshot is missing or older than the 120-second limit.'};
+  const symbolOk=!!state.meta && state.meta.enabled===true && Number.isInteger(Number(state.meta.pipPosition)) && Number.isInteger(Number(state.meta.digits)) && Number(state.meta.pipPosition)<=Number(state.meta.digits) &&
+    [state.meta.lotSize,state.meta.minVolume,state.meta.maxVolume,state.meta.stepVolume].every(v=>Number.isSafeInteger(Number(v))&&Number(v)>0) &&
+    Number(state.meta.maxVolume)>=Number(state.meta.minVolume) &&
+    Number.isFinite(state.meta.slDistancePoints)&&state.meta.slDistancePoints>=0 &&
+    Number.isFinite(state.meta.tpDistancePoints)&&state.meta.tpDistancePoints>=0;
+  const input=previewInputs();
+  let result=null; let brokerCheck=null;
+  if(quoteFresh && profileFresh && accountSupport.ok && symbolOk && state.currency!=='UNKNOWN' && Number.isFinite(entry) && Number.isFinite(sl) && sl>0){
+    result=calculatePluginPreview(input);
+    if(result?.ok){
+      brokerCheck=evaluateBrokerConstraints({
+        side:input.side,bid:state.quote.bid,ask:state.quote.ask,stopLoss:sl,takeProfit:result.takeProfit,
+        digits:Number(state.meta.digits),symbolEnabled:state.meta.enabled===true,
+        slDistancePoints:state.meta.slDistancePoints,tpDistancePoints:state.meta.tpDistancePoints,
+        maxExposureUsdCents:state.meta.maxExposureUsdCents
+      });
+    }
+  }
+  $('entry').textContent=Number.isFinite(entry)&&entry>0?fmtPrice(entry):'—';
+  $('distance').textContent=result?.stopDistancePips!=null?`${fmt(result.stopDistancePips,1)} pips`:'—';
+  $('target').textContent=result?.ok?fmtPrice(result.takeProfit):'—';
+  $('lots').textContent=result?.ok?fmt(result.lots,4):'—';
+  $('volume').textContent=result?.ok?Math.round(result.volumeCents).toLocaleString():'—';
+  $('riskEstimate').textContent=result?.ok?`${fmt(result.estimatedRisk)} ${state.currency}`:'—';
+  $('riskUsdEstimate').textContent=result?.ok?`$${fmt(result.estimatedRiskUsd)}`:'—';
+  showCommission(result);
+
+  if(!profileFresh) $('accountModelWarning').textContent='Account snapshot is missing or stale. Refresh required; no verified account-scoped preview is available.';
+  else if(!accountSupport.ok) $('accountModelWarning').textContent=`Preview blocked [${accountSupport.code}]: ${accountSupport.reason}`;
+  if(!state.connected) $('currencyWarning').textContent='cTrader host is not connected.';
+  else if(!quoteFresh) $('currencyWarning').textContent='Quote is missing or stale. The quote timestamp from cTrader and local receive time must both be within 10 seconds. The first quote may be a market-closed snapshot.';
+  else if(!profileFresh) $('currencyWarning').textContent='Account details are stale or unverified. Waiting for a consistent fresh broker/account/currency snapshot.';
+  else if(!accountSupport.ok) $('currencyWarning').textContent=`Account type not supported [${accountSupport.code}]: ${accountSupport.reason}`;
+  else if(state.currency==='UNKNOWN') $('currencyWarning').textContent='Account deposit currency is not confirmed by the SDK response.';
+  else if(!symbolOk) $('currencyWarning').textContent='Symbol metadata incomplete or disabled. Exact pip position, digits, volume limits/step and broker SL/TP minimum distances must be supplied. No defaults are guessed.';
+  else if(!Number.isFinite(sl)||sl<=0) $('currencyWarning').textContent='Enter a positive structural Stop Loss price.';
+  else if(!result?.ok) $('currencyWarning').textContent=`Calculation blocked [${result?.code??'INPUT_NOT_READY'}]: ${result?.reason??'Review the risk inputs and verify their source.'}`;
+  else $('currencyWarning').textContent=`Risk estimate ready: estimated price loss ${fmt(result.estimatedRisk)} ${state.currency} (about $${fmt(result.estimatedRiskUsd)}). Commission is displayed separately and excluded from volume sizing. This is not order approval.`;
+
+  if(!quoteFresh) $('brokerConstraintWarning').textContent='Broker-distance checks waiting for a fresh timestamped quote.';
+  else if(!state.meta || !Number.isFinite(state.meta.slDistancePoints) || !Number.isFinite(state.meta.tpDistancePoints)) $('brokerConstraintWarning').textContent='Broker min SL/TP distance fields are missing. Preview remains blocked until both are present in the current symbol response.';
+  else if(result?.ok && brokerCheck && !brokerCheck.ok) $('brokerConstraintWarning').textContent=`Broker constraint failed [${brokerCheck.code}]: ${brokerCheck.reason}`;
+  else if(result?.ok && brokerCheck?.ok) {
+    const exposure=state.meta.maxExposureUsdCents==null?'maxExposure is not provided':'maxExposure cannot be validated without an authoritative open-position exposure snapshot';
+    $('brokerConstraintWarning').textContent=`Broker min-distance check passed for current quote only. ${exposure}. TickSize/grid validity remains unverified; execution is disabled.`;
+  } else $('brokerConstraintWarning').textContent='Broker min-distance validation has not passed; no execution is permitted.';
+
+  $('preview').disabled=!state.connected;
+  return {result,quoteFresh,profileFresh,accountSupport,symbolOk,brokerCheck};
+}
+function parseQuoteEvent(event) {
+  let match=null;
+  deepWalk(event,o=>{
+    if(match || Number(o.symbolId) !== Number(state.symbol?.id)) return;
+    const bidRaw=Number(o.bid ?? o.bidPrice);
+    const askRaw=Number(o.ask ?? o.askPrice);
+    const timestamp=Number(o.timestamp);
+    // ProtoQuoteEvent bid/ask use 1/100,000 price units; timestamp is Unix milliseconds.
+    const bid=bidRaw/100000;
+    const ask=askRaw/100000;
+    const now=Date.now(); const age=now-timestamp;
+    if(Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid&&
+       Number.isFinite(timestamp)&&timestamp>0&&age>=0&&age<MAX_QUOTE_AGE_MS) match={bid,ask,timestamp};
+  });
+  return match;
+}
+function subscribeSelectedSymbol() {
+  if(!state.connected||!state.symbol) return;
+  const oldId=state.subscribedSymbolId;
+  const newId=Number(state.symbol.id);
+  const doSubscribe=()=>subscribeQuotes(state.adapter,{symbolId:[newId],enableStaleQuotesFiltering:true,subscribeToSpotTimestamp:true}).pipe(take(1)).subscribe({
+    next:r=>{state.subscribedSymbolId=newId;log({quoteSubscription:r,symbol:state.symbol.name});},
+    error:e=>log(`Quote subscribe error: ${e?.message??e}`)
+  });
+  if(oldId && oldId!==newId) unsubscribeQuotes(state.adapter,{symbolId:[oldId]}).pipe(take(1)).subscribe({next:doSubscribe,error:doSubscribe});
+  else doSubscribe();
+}
+function loadSymbolDetails() {
+  if(!state.connected||!state.symbol) return;
+  state.meta=null;state.quote=null;state.lastQuoteReceivedAt=0;
+  clearPipAndCommissionEvidence({clearValues:true});$('slPrice').value='';
+  updateQuoteUI();renderCalculation();
+  const expectedId=Number(state.symbol.id);
+  getSymbol(state.adapter,{symbolId:[expectedId]}).pipe(take(1)).subscribe({
+    next:r=>{
+      // Ignore a late response for a symbol that is no longer selected.
+      if(Number(state.symbol?.id)!==expectedId)return;
+      state.meta=normaliseMeta(r,expectedId);
+      if(!state.meta || state.meta.enabled!==true)log({error:'Exact symbol metadata missing or not explicitly enabled; preview blocked, no metadata defaults used.',response:r});
+      else log({symbolMetadataLoaded:state.symbol.name,pipPosition:state.meta.pipPosition,digits:state.meta.digits,lotSize:state.meta.lotSize,minVolume:state.meta.minVolume,maxVolume:state.meta.maxVolume,stepVolume:state.meta.stepVolume,slDistancePoints:state.meta.slDistancePoints,tpDistancePoints:state.meta.tpDistancePoints,maxExposureUsdCents:state.meta.maxExposureUsdCents,tickSizeAvailable:false});
+      subscribeSelectedSymbol();renderCalculation();
+    },error:e=>{log(`getSymbol failed: ${e?.message??e}`);renderCalculation();}
+  });
+}
+function pickBalanceEquity(result) {
+  // Clear first so an incomplete/new-account response cannot leave values from the prior account visible.
+  state.balance=null; state.equity=null;
+  // ProtoTrader guarantees balance; equity may not be part of the public response, so parse it only if present.
+  const o=findNestedObject(result,x=>x.balance!==undefined && x.moneyDigits!==undefined);
+  if(!o)return;
+  const digits=Number(o.moneyDigits);if(!Number.isInteger(digits)||digits<0||digits>8)return;
+  const div=Math.pow(10,digits);const b=Number(o.balance)/div;
+  if(Number.isFinite(b)) state.balance=b;
+  if(o.equity!==undefined){const e=Number(o.equity)/div;if(Number.isFinite(e))state.equity=e;}
+}
+function accountGroupExplicitlyDisabled(result) {
+  const node=findNestedObject(result,x=>typeof x.depositCurrency==='string' && /^[A-Za-z]{3}$/.test(x.depositCurrency) && Object.prototype.hasOwnProperty.call(x,'enabled'));
+  return node?.enabled===false;
+}
+function findDepositCurrency(result) {
+  const root=findNestedObject(result,x=>typeof x.depositCurrency==='string' && /^[A-Za-z]{3}$/.test(x.depositCurrency));
+  return root?.depositCurrency?.toUpperCase()??null;
+}
+function initialiseHost() {
+  const logger=createLogger(false);
+  state.adapter=createClientAdapter({logger});
+  // Stage G execution stays fail-closed in the delivered UI. The coordinator
+  // includes partial-fill protection and one-shot remainder cancellation logic;
+  // no user control can set execution gates true in this release.
+  state.executionCoordinator = new CTraderExecutionCoordinator({
+    adapter: state.adapter,
+    sdk: { createNewOrder, modifyOrderProtection, cancelOrder },
+    ServerInterfaces,
+    take,
+    gateProvider: () => ({
+      executionEnabled: false, hostConnected: state.connected,
+      demoAccountConfirmed: false, demoValidationComplete: false,
+      userConfirmed: false, previewFresh: false, journalDurable: false,
+      noUnresolvedExecution: false
+    }),
+    persistSnapshot: () => false,
+    onRecord: record => log({ executionRecord: { clientOrderId: record.clientOrderId, state: record.state, errorCode: record.errorCode, riskWarning: record.riskWarning } }),
+    onAction: action => log({ executionAction: action })
+  });
+  handleConfirmEvent(state.adapter,{}).pipe(take(1)).subscribe({error:e=>log(`Initial handshake error: ${e?.message??e}`)});
+  registerEvent(state.adapter).pipe(take(1),tap(()=>handleConfirmEvent(state.adapter,{}).pipe(take(1)).subscribe()),catchError(e=>{log(`Host registration failed: ${e?.message??e}`);return [];})).subscribe({
+    next:()=>{state.connected=true;setConnection('Connected to cTrader',true);log('Host handshake complete. Stage G coordinator is attached to the execution stream in read-only mode; order submission remains disabled pending tick-grid verification, C# build and host Demo validation.');$('symbol').disabled=false;$('eventReconciliationStatus').textContent='Execution stream connected (read-only)';loadAccount();loadSymbols();wireLiveEvents();renderCalculation();},
+    error:e=>{setConnection('Connection failed');log(e?.message??e);}
+  });
+}
+function loadAccount() {
+  if(!state.connected || state.accountRefreshInFlight) return;
+  state.accountRefreshInFlight=true;
+  const requestId=++state.accountRefreshRequestId;
+  const finish=()=>{if(requestId===state.accountRefreshRequestId)state.accountRefreshInFlight=false;};
+  getAccountInformation(state.adapter,{}).pipe(take(1)).subscribe({
+    next:firstResponse=>{
+      const firstTrader=traderFromResponse(firstResponse);
+      getAccountGroupInformation(state.adapter,{}).pipe(take(1)).subscribe({
+        next:groupResponse=>{
+          if(accountGroupExplicitlyDisabled(groupResponse)){invalidateAccountSnapshot('The current account group is explicitly disabled by SDK metadata; preview blocked.');finish();return;}
+          const currency=findDepositCurrency(groupResponse);
+          if(!currency){invalidateAccountSnapshot('Deposit currency is missing from current account-group response; preview blocked.');finish();return;}
+          state.refreshCurrencyFirst=currency;
+          getAccountInformation(state.adapter,{}).pipe(take(1)).subscribe({
+            next:secondResponse=>{
+              if(requestId!==state.accountRefreshRequestId){finish();return;}
+              const secondTrader=traderFromResponse(secondResponse);
+              if(!firstTrader || !secondTrader){invalidateAccountSnapshot('Account profile response lacks required broker/account fields; preview blocked.');finish();return;}
+              getAccountGroupInformation(state.adapter,{}).pipe(take(1)).subscribe({
+                next:secondGroupResponse=>{
+                  if(requestId!==state.accountRefreshRequestId){finish();return;}
+                  if(accountGroupExplicitlyDisabled(secondGroupResponse)){invalidateAccountSnapshot('The account group became disabled during refresh; previous account display/evidence cleared and preview blocked.');finish();return;}
+                  const secondCurrency=findDepositCurrency(secondGroupResponse);
+                  updateAccountIdentity(firstTrader,secondTrader,secondCurrency,secondResponse);
+                  finish();
+                },error:e=>{log(`Account currency consistency recheck error: ${e?.message??e}`);invalidateAccountSnapshot('Account currency consistency recheck failed; previous account display and manual evidence cleared, preview blocked.');finish();}
+              });
+            },error:e=>{log(`Account consistency recheck error: ${e?.message??e}`);invalidateAccountSnapshot('Account identity consistency recheck failed; preview is blocked.');finish();}
+          });
+        },error:e=>{log(`Account group info error: ${e?.message??e}`);invalidateAccountSnapshot('Account group information failed; preview is blocked.');finish();}
+      });
+    },error:e=>{log(`Account info error: ${e?.message??e}`);invalidateAccountSnapshot('Account information refresh failed; preview is blocked.');finish();}
+  });
+}
+function loadSymbols() {
+  getLightSymbolList(state.adapter,{}).pipe(take(1)).subscribe({next:r=>{
+    state.symbols=normaliseSymbols(r);setSymbolSelect(state.symbols);log(`Loaded ${state.symbols.length} tradable symbols.`);
+    if(state.symbols.length){const preferred=state.symbols.find(s=>/^(XAUUSD|GOLD)$/i.test(s.name))??state.symbols[0];$('symbol').value=String(preferred.id);setSelectedSymbol(preferred.id);}
+  },error:e=>log(`Symbol list error: ${e?.message??e}`)});
+}
+function setSelectedSymbol(id) {
+  state.symbol=state.symbols.find(s=>Number(s.id)===Number(id))??null;
+  state.meta=null;state.quote=null;state.lastQuoteReceivedAt=0;
+  loadSymbolDetails();updateQuoteUI();renderCalculation();
+}
+function wireLiveEvents() {
+  quoteEvent(state.adapter).subscribe({next:event=>{
+    const q=parseQuoteEvent(event);
+    if(q){state.quote=q;state.lastQuoteReceivedAt=Date.now();updateQuoteUI();renderCalculation();}
+    else { log({quoteIgnored:'quote did not contain matching symbol, valid prices and a fresh source timestamp'}); }
+  },error:e=>log(`Quote stream error: ${e?.message??e}`)});
+  executionEvent(state.adapter).subscribe({next:event=>{const route=state.executionCoordinator?.onExecutionEvent(event);if(route?.matched){$('eventReconciliationStatus').textContent='Correlated event processed; review execution ledger';log({executionEventMatched:true,route});}else{log({executionEventObserved:true,event});}},error:e=>log(`Execution event stream error: ${e?.message??e}`)});
+}
+$('symbol').addEventListener('change',()=>setSelectedSymbol($('symbol').value));
+const pipValueIds=['pipValue','pipSource','pipAgeMinutes'];
+for(const id of pipValueIds){
+  $(id).addEventListener('input',()=>{state.manualEvidence.pip=null;$('pipVerified').checked=false;renderCalculation();});
+  $(id).addEventListener('change',()=>{state.manualEvidence.pip=null;$('pipVerified').checked=false;renderCalculation();});
+}
+for(const id of ['usdFx','fxAgeMinutes','fxSource']){
+  $(id).addEventListener('input',()=>{state.manualEvidence.fx=null;$('fxVerified').checked=false;renderCalculation();});
+  $(id).addEventListener('change',()=>{state.manualEvidence.fx=null;$('fxVerified').checked=false;renderCalculation();});
+}
+for(const id of ['roundTurnCommission','commissionSource','commissionAgeHours']){
+  $(id).addEventListener('input',()=>{state.manualEvidence.commission=null;$('commissionVerified').checked=false;renderCalculation();});
+  $(id).addEventListener('change',()=>{state.manualEvidence.commission=null;$('commissionVerified').checked=false;renderCalculation();});
+}
+for(const id of ['side','slPrice']){
+  $(id).addEventListener('input',renderCalculation);
+  $(id).addEventListener('change',renderCalculation);
+}
+$('pipVerified').addEventListener('change',()=>{if($('pipVerified').checked)captureEvidence('pip-value');else state.manualEvidence.pip=null;renderCalculation();});
+$('fxVerified').addEventListener('change',()=>{if($('fxVerified').checked)captureEvidence('fx-rate');else state.manualEvidence.fx=null;renderCalculation();});
+$('commissionVerified').addEventListener('change',()=>{if($('commissionVerified').checked)captureEvidence('commission');else state.manualEvidence.commission=null;renderCalculation();});
+window.addEventListener('focus',()=>loadAccount());
+window.setInterval(()=>renderCalculation(),2500);
+window.setInterval(()=>loadAccount(),45000);
+$('preview').addEventListener('click',()=>{renderCalculation();log('Risk preview refreshed. No order was sent.');});
+initialiseHost();
+</script>
+</body>
+</html>
