@@ -552,6 +552,68 @@ function findDepositCurrency(result) {
   const root=findNestedObject(result,x=>typeof x.depositCurrency==='string' && /^[A-Za-z]{3}$/.test(x.depositCurrency));
   return root?.depositCurrency?.toUpperCase()??null;
 }
+function safeResponseKeys(value) {
+  if(!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  return Object.keys(value).sort().slice(0,40);
+}
+// Diagnostic summaries deliberately log field names and counts only—never login,
+// balance, equity, account identifiers, broker labels or full symbol payloads.
+function accountResponseShape(response) {
+  const rootKeys=safeResponseKeys(response);
+  const trader=findNestedObject(response,o=>(o.Login!==undefined || o.login!==undefined));
+  const parsedTrader=traderFromResponse(response);
+  const inspect=parsedTrader ?? trader;
+  const has=(key)=>!!inspect && Object.prototype.hasOwnProperty.call(inspect,key);
+  const type=(key)=>has(key)?typeof inspect[key]:'missing';
+  return {
+    rootKeys,
+    parserFoundTrader:!!parsedTrader,
+    traderObjectFound:!!trader,
+    traderKeys:safeResponseKeys(inspect),
+    fieldPresence:{
+      Login:has('Login'),login:has('login'),balance:has('balance'),moneyDigits:has('moneyDigits'),
+      BrokerName:has('BrokerName'),brokerName:has('brokerName'),accountType:has('accountType'),isLimitedRisk:has('isLimitedRisk')
+    },
+    fieldTypes:{
+      Login:type('Login'),login:type('login'),balance:type('balance'),moneyDigits:type('moneyDigits'),
+      BrokerName:type('BrokerName'),brokerName:type('brokerName'),accountType:type('accountType'),isLimitedRisk:type('isLimitedRisk')
+    }
+  };
+}
+function accountGroupResponseShape(response) {
+  const currency=findDepositCurrency(response);
+  return {
+    rootKeys:safeResponseKeys(response),
+    depositCurrencyFound:!!currency,
+    depositCurrency:currency ?? 'MISSING',
+    explicitDisabled:accountGroupExplicitlyDisabled(response)
+  };
+}
+function symbolListResponseShape(response) {
+  const rootKeys=safeResponseKeys(response);
+  const collections=[];
+  deepWalk(response,o=>{
+    for(const key of ['symbol','symbols','Symbol','Symbols']) {
+      if(Array.isArray(o[key])) collections.push({field:key,items:o[key]});
+    }
+  });
+  const items=collections.flatMap(x=>x.items);
+  const fields=items.length?safeResponseKeys(items[0]):[];
+  const hasId=x=>!!x && typeof x==='object' && (x.id!==undefined || x.symbolId!==undefined);
+  const hasName=x=>!!x && typeof x==='object' && (x.name!==undefined || x.symbolName!==undefined);
+  const count=(fn)=>items.filter(fn).length;
+  return {
+    rootKeys,
+    repeatedCollections:collections.map(x=>({field:x.field,count:x.items.length})),
+    candidateCount:items.length,
+    firstItemKeys:fields,
+    candidatesWithId:count(hasId),
+    candidatesWithName:count(hasName),
+    enabledTrue:count(x=>x && x.enabled===true),
+    enabledFalse:count(x=>x && x.enabled===false),
+    enabledMissingOrNonBoolean:count(x=>!x || typeof x.enabled!=='boolean')
+  };
+}
 function initialiseHost() {
   const logger=createLogger(false);
   state.adapter=createClientAdapter({logger});
@@ -586,20 +648,24 @@ function loadAccount() {
   const finish=()=>{if(requestId===state.accountRefreshRequestId)state.accountRefreshInFlight=false;};
   getAccountInformation(state.adapter,{}).pipe(take(1)).subscribe({
     next:firstResponse=>{
+      log({sdkResponse:'getAccountInformation:first',shape:accountResponseShape(firstResponse)});
       const firstTrader=traderFromResponse(firstResponse);
       getAccountGroupInformation(state.adapter,{}).pipe(take(1)).subscribe({
         next:groupResponse=>{
+          log({sdkResponse:'getAccountGroupInformation:first',shape:accountGroupResponseShape(groupResponse)});
           if(accountGroupExplicitlyDisabled(groupResponse)){invalidateAccountSnapshot('The current account group is explicitly disabled by SDK metadata; preview blocked.');finish();return;}
           const currency=findDepositCurrency(groupResponse);
           if(!currency){invalidateAccountSnapshot('Deposit currency is missing from current account-group response; preview blocked.');finish();return;}
           state.refreshCurrencyFirst=currency;
           getAccountInformation(state.adapter,{}).pipe(take(1)).subscribe({
             next:secondResponse=>{
+              log({sdkResponse:'getAccountInformation:second',shape:accountResponseShape(secondResponse)});
               if(requestId!==state.accountRefreshRequestId){finish();return;}
               const secondTrader=traderFromResponse(secondResponse);
               if(!firstTrader || !secondTrader){invalidateAccountSnapshot('Account profile response lacks required broker/account fields; preview blocked.');finish();return;}
               getAccountGroupInformation(state.adapter,{}).pipe(take(1)).subscribe({
                 next:secondGroupResponse=>{
+                  log({sdkResponse:'getAccountGroupInformation:second',shape:accountGroupResponseShape(secondGroupResponse)});
                   if(requestId!==state.accountRefreshRequestId){finish();return;}
                   if(accountGroupExplicitlyDisabled(secondGroupResponse)){invalidateAccountSnapshot('The account group became disabled during refresh; previous account display/evidence cleared and preview blocked.');finish();return;}
                   const secondCurrency=findDepositCurrency(secondGroupResponse);
@@ -616,6 +682,7 @@ function loadAccount() {
 }
 function loadSymbols() {
   getLightSymbolList(state.adapter,{}).pipe(take(1)).subscribe({next:r=>{
+    log({sdkResponse:'getLightSymbolList',shape:symbolListResponseShape(r)});
     state.symbols=normaliseSymbols(r);setSymbolSelect(state.symbols);log(`Loaded ${state.symbols.length} tradable symbols.`);
     if(state.symbols.length){const preferred=state.symbols.find(s=>/^(XAUUSD|GOLD)$/i.test(s.name))??state.symbols[0];$('symbol').value=String(preferred.id);setSelectedSymbol(preferred.id);}
   },error:e=>log(`Symbol list error: ${e?.message??e}`)});
