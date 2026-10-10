@@ -40,9 +40,10 @@ test('UI policy display matches approved 2R/3R policy and 5R target',()=>{
   assert.doesNotMatch(html,/2\.2R/);
 });
 
-test('symbol list requires enabled===true; missing enabled is not treated as tradable',()=>{
-  assert.match(html,/enabled:s\.enabled===true/);
+test('symbol list requires an explicit enabled===true even across SDK field casing',()=>{
+  assert.match(html,/enabled:fieldValue\(s,'enabled'\)===true/);
   assert.match(html,/\.filter\(s=>Number\.isSafeInteger\(s\.id\)&&s\.id>=0&&s\.name&&s\.enabled\)/);
+  assert.match(html,/const lower=key\.toLowerCase\(\)/);
 });
 
 test('freshness uses cTrader source timestamp as well as local receipt time',()=>{
@@ -155,5 +156,25 @@ test('adds privacy-safe cTrader SDK response diagnostics for account and symbol 
   assert.match(html,/sdkResponse:'getAccountGroupInformation:first'/);
   assert.match(html,/sdkResponse:'getLightSymbolList'/);
   assert.match(html,/Diagnostic summaries deliberately log field names and counts only/);
+  assert.match(html,/executionEnabled:\s*false/);
+});
+
+
+test('cTrader account and group parsing accepts camelCase and PascalCase SDK fields',()=>{
+  assert.match(html,/function fieldValue\(object, \.\.\.aliases\)/);
+  assert.match(html,/fieldValue\(o,'Login'\)/);
+  assert.match(html,/fieldValue\(raw,'BrokerName','brokerName'\)/);
+  assert.match(html,/fieldValue\(raw,'isLimitedRisk'\)/);
+  assert.match(html,/function findDepositCurrency\(result\)/);
+  assert.match(html,/fieldValue\(x,'depositCurrency'\)/);
+  assert.match(html,/function responsePayloadInfo\(response\)/);
+  assert.match(html,/envelopePayloadKeys/);
+});
+
+test('symbol metadata accepts case variants but never guesses missing enabled state',()=>{
+  assert.match(html,/fieldValue\(s,'id','symbolId'\)/);
+  assert.match(html,/fieldValue\(s,'name','symbolName'\)/);
+  assert.match(html,/enabled:fieldValue\(s,'enabled'\)===true/);
+  assert.match(html,/enabled:enabled===true/);
   assert.match(html,/executionEnabled:\s*false/);
 });
