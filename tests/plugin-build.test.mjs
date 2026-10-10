@@ -118,3 +118,20 @@ test('explicitly disabled account group blocks preview and stale identity values
   assert.match(html,/Number\(state\.meta\.pipPosition\)<=Number\(state\.meta\.digits\)/);
   assert.match(html,/Account context is consistent across two SDK reads[\s\S]*?not an atomic snapshot/);
 });
+
+
+test('cTrader light/dark theme query parameter maps to explicit accessible palettes',()=>{
+  assert.match(html,/<meta name="color-scheme" content="light dark">/);
+  assert.match(html,/new URLSearchParams\(window\.location\.search\)\.get\('theme'\)/);
+  assert.match(html,/requestedTheme === 'light' \? 'light' : 'dark'/);
+  assert.match(html,/:root\[data-theme="light"\]/);
+  assert.match(html,/--bg:#f3f6fb/);
+  assert.match(html,/--bg:#0b1220/);
+  assert.match(html,/@media\(max-width:620px\)/);
+});
+
+test('Stage G order submission remains locked after theme changes',()=>{
+  assert.match(html,/executionEnabled:\s*false/);
+  assert.match(html,/demoValidationComplete:\s*false/);
+  assert.match(html,/Order execution locked — Demo validation required/);
+});
