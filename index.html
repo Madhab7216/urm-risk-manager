@@ -3,10 +3,84 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light dark">
 <title>URM Advanced Risk Manager — Stage G v1.0</title>
+<script>
+(() => {
+  // cTrader supplies theme=light|dark when launching or reloading a web plugin.
+  const requestedTheme = new URLSearchParams(window.location.search).get('theme');
+  const theme = requestedTheme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = theme;
+})();
+</script>
 <style>
-:root{color-scheme:dark;--bg:#0b1220;--panel:#111c2f;--line:#25344d;--muted:#9db0ca;--text:#ecf3ff;--blue:#6fb7ff;--green:#3dd598;--red:#ff707a;--amber:#f4be5e}
+:root{
+  color-scheme:dark;
+  --bg:#0b1220;--panel:#111c2f;--line:#25344d;--muted:#9db0ca;--text:#ecf3ff;
+  --blue:#6fb7ff;--green:#3dd598;--red:#ff707a;--amber:#f4be5e;
+  --ok-border:#206b55;--bad-border:#76313b;--heading:#cfe2ff;
+  --input-bg:#0b1424;--input-border:#31425d;--primary-button-text:#061322;
+  --secondary-button-bg:#21334c;--secondary-button-border:#334963;
+  --warning-border:#785a23;--warning-bg:#302511;--warning-text:#ffe5a8;
+  --good-border:#216b55;--good-bg:#102a25;--good-text:#bbf6de;
+  --logs-bg:#08101c;--fx-bg:#0d1728;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f3f6fb;--panel:#ffffff;--line:#d6dfeb;--muted:#526277;--text:#172335;
+  --blue:#195fd6;--green:#137547;--red:#b42318;--amber:#8a5700;
+  --ok-border:#7bc0a0;--bad-border:#e6a2a6;--heading:#1c3c66;
+  --input-bg:#f8fafc;--input-border:#bac7d8;--primary-button-text:#ffffff;
+  --secondary-button-bg:#e9eff7;--secondary-button-border:#c5d1e0;
+  --warning-border:#d6a84e;--warning-bg:#fff4d6;--warning-text:#725000;
+  --good-border:#8dc8a9;--good-bg:#e9f7ef;--good-text:#135d39;
+  --logs-bg:#f5f7fa;--fx-bg:#f3f6fb;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,Segoe UI,Arial,sans-serif}
+main{max-width:900px;margin:auto;padding:14px;display:grid;gap:12px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:800;font-size:18px;letter-spacing:.2px}
+.sub{color:var(--muted);font-size:12px}
+.pill{border:1px solid var(--line);border-radius:99px;padding:5px 9px;color:var(--muted);white-space:nowrap}
+.pill.ok{color:var(--green);border-color:var(--ok-border)}
+.pill.bad{color:var(--red);border-color:var(--bad-border)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.card h2{font-size:13px;margin:0 0 12px;color:var(--heading);text-transform:uppercase;letter-spacing:.09em}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.field label{font-size:12px;color:var(--muted)}
+input,select{width:100%;min-width:0;background:var(--input-bg);color:var(--text);border:1px solid var(--input-border);border-radius:8px;padding:9px;font:inherit;outline:none}
+input:focus,select:focus{border-color:var(--blue)}
+input:disabled{opacity:.65}
+.btn{border:0;border-radius:9px;padding:11px 13px;font-weight:800;cursor:pointer;background:var(--blue);color:var(--primary-button-text);width:100%}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.secondary{background:var(--secondary-button-bg);color:var(--text);border:1px solid var(--secondary-button-border)}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.metric{background:var(--input-bg);border:1px solid var(--line);border-radius:10px;padding:10px;min-width:0}
+.metric span{display:block;font-size:11px;color:var(--muted)}
+.metric strong{display:block;font-size:17px;margin-top:3px;overflow-wrap:anywhere}
+.warning{border:1px solid var(--warning-border);background:var(--warning-bg);color:var(--warning-text);padding:10px;border-radius:9px;font-size:12px}
+.good{border:1px solid var(--good-border);background:var(--good-bg);color:var(--good-text);padding:10px;border-radius:9px;font-size:12px}
+.check{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted);margin:10px 0}
+.check input{width:auto;margin-top:3px}
+.logs{max-height:190px;overflow:auto;background:var(--logs-bg);border:1px solid var(--line);border-radius:8px;padding:9px;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+.policy{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.step{background:var(--input-bg);border:1px solid var(--line);border-radius:8px;padding:9px}
+.step b{display:block}
+.step span{color:var(--muted);font-size:11px}
+.small{font-size:11px;color:var(--muted)}
+.inline-value{font-size:15px;font-weight:800;color:var(--green)}
+.hide{display:none!important}
+@media(max-width:620px){
+  main{padding:9px}
+  .grid{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .policy{grid-template-columns:repeat(2,1fr)}
+  .top{align-items:flex-start;flex-direction:column}
+  .row{gap:8px}
+}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,Segoe UI,Arial,sans-serif}main{max-width:900px;margin:auto;padding:14px;display:grid;gap:12px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.brand{font-weight:800;font-size:18px;letter-spacing:.2px}.sub{color:var(--muted);font-size:12px}.pill{border:1px solid var(--line);border-radius:99px;padding:5px 9px;color:var(--muted);white-space:nowrap}.pill.ok{color:var(--green);border-color:#206b55}.pill.bad{color:var(--red);border-color:#76313b}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}.card h2{font-size:13px;margin:0 0 12px;color:#cfe2ff;text-transform:uppercase;letter-spacing:.09em}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}.field label{font-size:12px;color:var(--muted)}input,select{width:100%;min-width:0;background:#0b1424;color:var(--text);border:1px solid #31425d;border-radius:8px;padding:9px;font:inherit;outline:none}input:focus,select:focus{border-color:var(--blue)}input:disabled{opacity:.65}.btn{border:0;border-radius:9px;padding:11px 13px;font-weight:800;cursor:pointer;background:var(--blue);color:#061322;width:100%}.btn:disabled{opacity:.4;cursor:not-allowed}.btn.secondary{background:#21334c;color:var(--text);border:1px solid #334963}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.metric{background:#0b1424;border:1px solid var(--line);border-radius:10px;padding:10px;min-width:0}.metric span{display:block;font-size:11px;color:var(--muted)}.metric strong{display:block;font-size:17px;margin-top:3px;overflow-wrap:anywhere}.warning{border:1px solid #785a23;background:#302511;color:#ffe5a8;padding:10px;border-radius:9px;font-size:12px}.good{border:1px solid #216b55;background:#102a25;color:#bbf6de;padding:10px;border-radius:9px;font-size:12px}.check{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted);margin:10px 0}.check input{width:auto;margin-top:3px}.logs{max-height:190px;overflow:auto;background:#08101c;border:1px solid var(--line);border-radius:8px;padding:9px;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.policy{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.step{background:#0b1424;border:1px solid var(--line);border-radius:8px;padding:9px}.step b{display:block}.step span{color:var(--muted);font-size:11px}.small{font-size:11px;color:var(--muted)}.inline-value{font-size:15px;font-weight:800;color:var(--green)}.hide{display:none!important}@media(max-width:620px){main{padding:9px}.grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.policy{grid-template-columns:repeat(2,1fr)}.top{align-items:flex-start;flex-direction:column}.row{gap:8px}}
 </style>
 </head>
@@ -49,7 +123,7 @@
       </div>
       <div class="field"><label for="pipAgeMinutes">Age of pip-value observation (minutes; must be ≤ 15)</label><input id="pipAgeMinutes" type="number" min="0" step="any" placeholder="0 if verified just now"></div>
       <label class="check"><input type="checkbox" id="pipVerified"><span>I have verified the pip value for this exact symbol, account and broker.</span></label>
-      <div id="fxBox" class="card" style="padding:10px;margin:8px 0 10px;background:#0d1728">
+      <div id="fxBox" class="card" style="padding:10px;margin:8px 0 10px;background:var(--fx-bg)">
         <div class="small" style="margin-bottom:8px">USD risk conversion for a non-USD account. Rate units: deposit-currency units per 1 USD. Manual conversion must be verified and no older than 15 minutes.</div>
         <div class="row">
           <div class="field"><label for="usdFx">Deposit currency per 1 USD</label><input id="usdFx" type="number" min="0" step="any" value="1"></div>
