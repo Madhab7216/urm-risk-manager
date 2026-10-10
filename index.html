@@ -280,7 +280,7 @@ function renderDiagnosticsSummary() {
   const quoteAge=state.quote?Date.now()-Number(state.quote.timestamp):Infinity;
   if(state.quote && quoteAge>=0 && quoteAge<MAX_QUOTE_AGE_MS && Date.now()-state.lastQuoteReceivedAt<MAX_QUOTE_AGE_MS)
     put('diagQuote',`${state.symbol?.name??'Symbol'}: Bid ${fmtPrice(state.quote.bid)} / Ask ${fmtPrice(state.quote.ask)} (fresh)`,'good');
-  else put('diagQuote',`${d.quoteStatus}; rejected/invalid events: ${d.quoteRejectedCount}`,'warn');
+  else put('diagQuote',`${d.quoteSubscription}; ${d.quoteStatus}; rejected/invalid events: ${d.quoteRejectedCount}`,'warn');
 
   put('diagTickGrid','No trusted TickSize contract; execution locked','warn');
   let next='Next: wait for account, symbol metadata and fresh quote before entering calibration evidence.';
@@ -649,9 +649,22 @@ function subscribeSelectedSymbol() {
   if(!state.connected||!state.symbol) return;
   const oldId=state.subscribedSymbolId;
   const newId=Number(state.symbol.id);
+  state.sdkDiagnostics.quoteSubscription='Subscription request pending';
+  state.sdkDiagnostics.quoteStatus='Waiting for quote event';
+  renderDiagnosticsSummary();
   const doSubscribe=()=>subscribeQuotes(state.adapter,{symbolId:[newId],enableStaleQuotesFiltering:true,subscribeToSpotTimestamp:true}).pipe(take(1)).subscribe({
-    next:r=>{state.subscribedSymbolId=newId;log({quoteSubscription:r,symbol:state.symbol.name});},
-    error:e=>log(`Quote subscribe error: ${e?.message??e}`)
+    next:r=>{
+      state.subscribedSymbolId=newId;
+      state.sdkDiagnostics.quoteSubscription='Acknowledged; waiting for first quote event';
+      log({quoteSubscription:r,symbol:state.symbol.name});
+      renderDiagnosticsSummary();
+    },
+    error:e=>{
+      state.sdkDiagnostics.quoteSubscription='Subscription failed';
+      state.sdkDiagnostics.lastError=`Quote subscription failed: ${e?.message??'unknown error'}`;
+      log(state.sdkDiagnostics.lastError);
+      renderDiagnosticsSummary();
+    }
   });
   if(oldId && oldId!==newId) unsubscribeQuotes(state.adapter,{symbolId:[oldId]}).pipe(take(1)).subscribe({next:doSubscribe,error:doSubscribe});
   else doSubscribe();
@@ -795,7 +808,7 @@ function initialiseHost() {
   });
   handleConfirmEvent(state.adapter,{}).pipe(take(1)).subscribe({error:e=>log(`Initial handshake error: ${e?.message??e}`)});
   registerEvent(state.adapter).pipe(take(1),tap(()=>handleConfirmEvent(state.adapter,{}).pipe(take(1)).subscribe()),catchError(e=>{log(`Host registration failed: ${e?.message??e}`);return [];})).subscribe({
-    next:()=>{state.connected=true;setConnection('Connected to cTrader',true);log('Host handshake complete. Stage G coordinator is attached to the execution stream in read-only mode; order submission remains disabled pending tick-grid verification, C# build and host Demo validation.');$('symbol').disabled=false;$('eventReconciliationStatus').textContent='Execution stream connected (read-only)';loadAccount();loadSymbols();wireLiveEvents();renderCalculation();},
+    next:()=>{state.connected=true;setConnection('Connected to cTrader',true);log('Host handshake complete. Stage G coordinator is attached to the execution stream in read-only mode; order submission remains disabled pending tick-grid verification, C# build and host Demo validation.');$('symbol').disabled=false;$('eventReconciliationStatus').textContent='Execution stream connected (read-only)';wireLiveEvents();loadAccount();loadSymbols();renderCalculation();},
     error:e=>{setConnection('Connection failed');log(e?.message??e);}
   });
 }
@@ -853,7 +866,12 @@ function setSelectedSymbol(id) {
 function wireLiveEvents() {
   quoteEvent(state.adapter).subscribe({next:event=>{
     const q=parseQuoteEvent(event);
-    if(q){state.quote=q;state.lastQuoteReceivedAt=Date.now();state.sdkDiagnostics.quoteStatus='Fresh quote event received';updateQuoteUI();renderCalculation();}
+    if(q){
+      state.quote=q;state.lastQuoteReceivedAt=Date.now();
+      state.sdkDiagnostics.quoteStatus='Fresh quote event received';
+      state.sdkDiagnostics.quoteSubscription='Quote event received';
+      updateQuoteUI();renderCalculation();
+    }
     else { state.sdkDiagnostics.quoteRejectedCount++; state.sdkDiagnostics.quoteStatus='Quote event failed symbol/price/timestamp checks'; log({quoteIgnored:'quote did not contain matching symbol, valid prices and a fresh source timestamp'});renderDiagnosticsSummary(); }
   },error:e=>log(`Quote stream error: ${e?.message??e}`)});
   executionEvent(state.adapter).subscribe({next:event=>{const route=state.executionCoordinator?.onExecutionEvent(event);if(route?.matched){$('eventReconciliationStatus').textContent='Correlated event processed; review execution ledger';log({executionEventMatched:true,route});}else{log({executionEventObserved:true,event});}},error:e=>log(`Execution event stream error: ${e?.message??e}`)});
