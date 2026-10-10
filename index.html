@@ -231,6 +231,7 @@ import { calculatePluginPreview, MAX_MANUAL_FX_AGE_MS } from "./plugin-policy.mj
 import { CTraderExecutionCoordinator } from "./execution-engine.mjs";
 import { createManualEvidence, evaluateAccountSupport, MAX_MANUAL_PIP_VALUE_AGE_MS, MAX_MANUAL_COMMISSION_AGE_MS } from "./evidence-integrity.mjs";
 import { evaluateBrokerConstraints } from "./broker-constraints.mjs";
+import { parseQuoteEventPayload } from "./quote-data.mjs";
 import { accountCoreFingerprint, accountSnapshotConsistent, createAccountProfile, isAccountProfileFresh, MAX_ACCOUNT_SNAPSHOT_AGE_MS } from "./account-profile.mjs";
 
 const $ = id => document.getElementById(id);
@@ -243,7 +244,7 @@ const state = {
   sdkDiagnostics:{
     accountInfo:null, accountGroup:null, symbolList:null, symbolMetadata:null,
     quoteSubscription:'Not requested', quoteStatus:'Waiting for quote event',
-    quoteRejectedCount:0, lastError:'No SDK error recorded'
+    quoteRejectedCount:0, lastQuoteEvent:null, lastError:'No SDK error recorded'
   }
 };
 const MAX_QUOTE_AGE_MS = 10_000;
@@ -280,7 +281,10 @@ function renderDiagnosticsSummary() {
   const quoteAge=state.quote?Date.now()-Number(state.quote.timestamp):Infinity;
   if(state.quote && quoteAge>=0 && quoteAge<MAX_QUOTE_AGE_MS && Date.now()-state.lastQuoteReceivedAt<MAX_QUOTE_AGE_MS)
     put('diagQuote',`${state.symbol?.name??'Symbol'}: Bid ${fmtPrice(state.quote.bid)} / Ask ${fmtPrice(state.quote.ask)} (fresh)`,'good');
-  else put('diagQuote',`${d.quoteSubscription}; ${d.quoteStatus}; rejected/invalid events: ${d.quoteRejectedCount}`,'warn');
+  else {
+    const reason=d.lastQuoteEvent?.reason ? ` (${d.lastQuoteEvent.reason})` : '';
+    put('diagQuote',`${d.quoteSubscription}; ${d.quoteStatus}${reason}; rejected/invalid events: ${d.quoteRejectedCount}`,'warn');
+  }
 
   put('diagTickGrid','No trusted TickSize contract; execution locked','warn');
   let next='Next: wait for account, symbol metadata and fresh quote before entering calibration evidence.';
@@ -630,20 +634,16 @@ function renderCalculation() {
   return {result,quoteFresh,profileFresh,accountSupport,symbolOk,brokerCheck};
 }
 function parseQuoteEvent(event) {
-  let match=null;
-  deepWalk(event,o=>{
-    if(match || Number(o.symbolId) !== Number(state.symbol?.id)) return;
-    const bidRaw=Number(o.bid ?? o.bidPrice);
-    const askRaw=Number(o.ask ?? o.askPrice);
-    const timestamp=Number(o.timestamp);
-    // ProtoQuoteEvent bid/ask use 1/100,000 price units; timestamp is Unix milliseconds.
-    const bid=bidRaw/100000;
-    const ask=askRaw/100000;
-    const now=Date.now(); const age=now-timestamp;
-    if(Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid&&
-       Number.isFinite(timestamp)&&timestamp>0&&age>=0&&age<MAX_QUOTE_AGE_MS) match={bid,ask,timestamp};
+  // cTrader documents ProtoQuoteEvent.bid/ask in 1/100,000 units and
+  // timestamp as UNIX milliseconds. The parser accepts SDK field casing
+  // variants but still requires a matching symbol and a fresh source timestamp.
+  const result=parseQuoteEventPayload(event,{
+    expectedSymbolId:state.symbol?.id,
+    nowMs:Date.now(),
+    maxAgeMs:MAX_QUOTE_AGE_MS
   });
-  return match;
+  state.sdkDiagnostics.lastQuoteEvent=result.diagnostic;
+  return result.quote;
 }
 function subscribeSelectedSymbol() {
   if(!state.connected||!state.symbol) return;
@@ -872,7 +872,13 @@ function wireLiveEvents() {
       state.sdkDiagnostics.quoteSubscription='Quote event received';
       updateQuoteUI();renderCalculation();
     }
-    else { state.sdkDiagnostics.quoteRejectedCount++; state.sdkDiagnostics.quoteStatus='Quote event failed symbol/price/timestamp checks'; log({quoteIgnored:'quote did not contain matching symbol, valid prices and a fresh source timestamp'});renderDiagnosticsSummary(); }
+    else {
+      state.sdkDiagnostics.quoteRejectedCount++;
+      const reason=state.sdkDiagnostics.lastQuoteEvent?.reason ?? 'unknown_quote_event_shape';
+      state.sdkDiagnostics.quoteStatus=`Quote rejected: ${reason}`;
+      log({quoteIgnored:'Quote event rejected by strict symbol/price/timestamp validation',diagnostic:state.sdkDiagnostics.lastQuoteEvent});
+      renderDiagnosticsSummary();
+    }
   },error:e=>log(`Quote stream error: ${e?.message??e}`)});
   executionEvent(state.adapter).subscribe({next:event=>{const route=state.executionCoordinator?.onExecutionEvent(event);if(route?.matched){$('eventReconciliationStatus').textContent='Correlated event processed; review execution ledger';log({executionEventMatched:true,route});}else{log({executionEventObserved:true,event});}},error:e=>log(`Execution event stream error: ${e?.message??e}`)});
 }
