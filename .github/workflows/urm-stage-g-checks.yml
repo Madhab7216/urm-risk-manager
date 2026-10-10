@@ -1,0 +1,42 @@
+name: URM Stage G checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: JavaScript syntax and safety tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check JavaScript module syntax
+        run: |
+          set -eu
+          for file in \
+            risk-core.mjs \
+            plugin-policy.mjs \
+            account-profile.mjs \
+            evidence-integrity.mjs \
+            broker-constraints.mjs \
+            execution-engine.mjs \
+            position-manager-policy.mjs \
+            tools/validate-calibration-report.mjs
+          do
+            node --check "$file"
+          done
+
+      - name: Run automated risk and safety tests
+        run: node --test tests/*.test.mjs
