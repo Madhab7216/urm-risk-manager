@@ -65,6 +65,16 @@ input:disabled{opacity:.65}
 .good{border:1px solid var(--good-border);background:var(--good-bg);color:var(--good-text);padding:10px;border-radius:9px;font-size:12px}
 .check{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted);margin:10px 0}
 .check input{width:auto;margin-top:3px}
+.diag-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.diag-item{background:var(--input-bg);border:1px solid var(--line);border-radius:9px;padding:10px;min-width:0}
+.diag-item span{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
+.diag-item strong{display:block;color:var(--text);font-size:13px;overflow-wrap:anywhere}
+.diag-item strong.good-text{color:var(--green)}
+.diag-item strong.warn-text{color:var(--amber)}
+.diag-item strong.bad-text{color:var(--red)}
+.diag-next{margin:10px 0 0}
+.diag-raw{margin-top:8px}
+.diag-raw summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:700;padding:3px 0}
 .logs{max-height:190px;overflow:auto;background:var(--logs-bg);border:1px solid var(--line);border-radius:8px;padding:9px;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
 .policy{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
 .step{background:var(--input-bg);border:1px solid var(--line);border-radius:8px;padding:9px}
@@ -192,7 +202,22 @@ input:disabled{opacity:.65}
     <p class="small">The execution coordinator listens to SDK execution events, but this build has no enabled order control. Its release gates are deliberately false, and its persistence adapter is not configured for trade submission. The Web Plugin SDK symbol metadata available to this build does not provide a trusted TickSize contract; decimal digits are not a substitute. A successful local mock test is not evidence of a broker-host Demo pass. The read-only C# observer is a separate cBot source file and has not yet been compiled or connected to this plugin.</p>
   </section>
 
-  <section class="card"><h2>SDK status & diagnostics</h2><div id="logs" class="logs">Starting plugin…</div></section>
+  <section class="card">
+    <h2>Quick diagnostics summary</h2>
+    <div class="diag-summary">
+      <div class="diag-item"><span>cTrader host</span><strong id="diagHost">Checking…</strong></div>
+      <div class="diag-item"><span>Account</span><strong id="diagAccount">Waiting for account response</strong></div>
+      <div class="diag-item"><span>Symbol list</span><strong id="diagSymbols">Waiting for symbol list</strong></div>
+      <div class="diag-item"><span>Selected symbol metadata</span><strong id="diagMeta">Not loaded</strong></div>
+      <div class="diag-item"><span>Quote / Bid / Ask</span><strong id="diagQuote">Waiting for quote</strong></div>
+      <div class="diag-item"><span>Tick grid</span><strong id="diagTickGrid">Not verified</strong></div>
+    </div>
+    <p class="small diag-next" id="diagNextStep">Waiting for SDK responses.</p>
+  </section>
+  <details class="card diag-raw">
+    <summary>Advanced raw SDK logs (technical details)</summary>
+    <div id="logs" class="logs">Starting plugin…</div>
+  </details>
 </main>
 <script type="module">
 import { createClientAdapter } from "https://esm.sh/@spotware-web-team/sdk-external-api";
@@ -214,16 +239,82 @@ const state = {
   currency:"UNKNOWN", balance:null, equity:null, lastQuoteReceivedAt:0,
   subscribedSymbolId:null, executionCoordinator:null, accountProfile:null,
   accountInfoRaw:null, accountGroupCurrency:null, accountRefreshInFlight:false,
-  accountRefreshRequestId:0, refreshCurrencyFirst:null, manualEvidence:{pip:null,fx:null,commission:null}
+  accountRefreshRequestId:0, refreshCurrencyFirst:null, manualEvidence:{pip:null,fx:null,commission:null},
+  sdkDiagnostics:{
+    accountInfo:null, accountGroup:null, symbolList:null, symbolMetadata:null,
+    quoteSubscription:'Not requested', quoteStatus:'Waiting for quote event',
+    quoteRejectedCount:0, lastError:'No SDK error recorded'
+  }
 };
 const MAX_QUOTE_AGE_MS = 10_000;
 const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? Number(v).toLocaleString(undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}) : "—";
 const num = id => { const value=$(id).value; return value.trim()===''?NaN:Number(value); };
+function renderDiagnosticsSummary() {
+  const d=state.sdkDiagnostics;
+  const put=(id,text,kind='')=>{
+    const el=$(id); if(!el)return;
+    el.textContent=text;
+    el.className=kind ? `${kind}-text` : '';
+  };
+  put('diagHost',state.connected?'Connected (read-only)':'Connecting / not connected',state.connected?'good':'warn');
+
+  const profileFresh=isAccountProfileFresh(state.accountProfile,Date.now(),MAX_ACCOUNT_SNAPSHOT_AGE_MS);
+  const support=profileFresh?evaluateAccountSupport(state.accountProfile):{ok:false};
+  if(profileFresh && support.ok) put('diagAccount',`${state.accountProfile.brokerName} · ${state.currency} · ${state.accountProfile.accountTypeName}`,'good');
+  else if(d.accountGroup?.depositCurrencyFound) put('diagAccount',`Currency ${d.accountGroup.depositCurrency}; full profile not verified`,'warn');
+  else put('diagAccount','Account/profile response incomplete','warn');
+
+  const sl=d.symbolList;
+  if(!sl) put('diagSymbols','Waiting for getLightSymbolList');
+  else if(state.symbols.length>0) put('diagSymbols',`${state.symbols.length} usable / ${sl.candidateCount} candidates; enabled=true: ${sl.enabledTrue}; enabled missing: ${sl.enabledMissingOrNonBoolean}`,'good');
+  else if(sl.candidateCount===0) put('diagSymbols','0 candidates returned by SDK','bad');
+  else if(sl.enabledTrue===0 && sl.enabledMissingOrNonBoolean>0) put('diagSymbols',`0 usable / ${sl.candidateCount} candidates; ${sl.enabledMissingOrNonBoolean} lack explicit enabled=true`,'warn');
+  else put('diagSymbols',`0 usable / ${sl.candidateCount} candidates; inspect IDs/names/enabled filter`,'bad');
+
+  if(state.symbol && state.meta) {
+    const complete=state.meta.enabled===true && Number.isInteger(state.meta.pipPosition) && Number.isInteger(state.meta.digits) &&
+      [state.meta.lotSize,state.meta.minVolume,state.meta.maxVolume,state.meta.stepVolume].every(v=>Number.isSafeInteger(Number(v))&&Number(v)>0);
+    put('diagMeta',`${state.symbol.name}: ${complete?'core fields present':'incomplete'}; digits ${state.meta.digits}; pip position ${state.meta.pipPosition}`,complete?'good':'warn');
+  } else put('diagMeta',state.symbol?'Selected symbol; details missing/incomplete':'No symbol selected','warn');
+
+  const quoteAge=state.quote?Date.now()-Number(state.quote.timestamp):Infinity;
+  if(state.quote && quoteAge>=0 && quoteAge<MAX_QUOTE_AGE_MS && Date.now()-state.lastQuoteReceivedAt<MAX_QUOTE_AGE_MS)
+    put('diagQuote',`${state.symbol?.name??'Symbol'}: Bid ${fmtPrice(state.quote.bid)} / Ask ${fmtPrice(state.quote.ask)} (fresh)`,'good');
+  else put('diagQuote',`${d.quoteStatus}; rejected/invalid events: ${d.quoteRejectedCount}`,'warn');
+
+  put('diagTickGrid','No trusted TickSize contract; execution locked','warn');
+  let next='Next: wait for account, symbol metadata and fresh quote before entering calibration evidence.';
+  if(!state.connected) next='Next: cTrader host handshake is not complete.';
+  else if(!profileFresh || !support.ok) next='Next: inspect account/profile response; do not attest FX, pip or commission values.';
+  else if(!sl) next='Next: waiting for getLightSymbolList response.';
+  else if(state.symbols.length===0 && sl.candidateCount===0) next='Next: SDK returned no symbol candidates. Inspect the raw getLightSymbolList response shape.';
+  else if(state.symbols.length===0 && sl.enabledTrue===0) next='Next: symbols may be missing explicit enabled=true; keep them blocked until confirmed from SDK data.';
+  else if(!state.symbol) next='Next: no validated tradable symbol is selected.';
+  else if(!state.meta) next='Next: inspect getSymbol response; detailed symbol fields are incomplete or missing.';
+  else if(!state.quote || quoteAge<0 || quoteAge>=MAX_QUOTE_AGE_MS || Date.now()-state.lastQuoteReceivedAt>=MAX_QUOTE_AGE_MS)
+    next='Next: wait for a fresh timestamped quote. A subscription acknowledgement alone is not a quote.';
+  else next='Next: quote is fresh, but pip value, EUR/USD conversion, commission and broker price-grid checks remain separate.';
+  if(d.lastError && d.lastError!=='No SDK error recorded') next+=` Last SDK issue: ${d.lastError}`;
+  const nextEl=$('diagNextStep'); if(nextEl) nextEl.textContent=next;
+}
 function log(value) {
-  const line = new Date().toLocaleTimeString() + "  " + (typeof value === "string" ? value : JSON.stringify(value));
+  if(value && typeof value==='object') {
+    if(value.sdkResponse==='getAccountInformation:first' || value.sdkResponse==='getAccountInformation:second') state.sdkDiagnostics.accountInfo=value.shape;
+    if(value.sdkResponse==='getAccountGroupInformation:first' || value.sdkResponse==='getAccountGroupInformation:second') state.sdkDiagnostics.accountGroup=value.shape;
+    if(value.sdkResponse==='getLightSymbolList') state.sdkDiagnostics.symbolList=value.shape;
+    if(value.quoteSubscription) state.sdkDiagnostics.quoteSubscription='Acknowledged; waiting for a quote event';
+    if(value.symbolMetadataLoaded) state.sdkDiagnostics.symbolMetadata={received:true,enabled:true};
+    if(value.error && typeof value.error==='string') state.sdkDiagnostics.lastError=value.error;
+  } else if(typeof value==='string' && /request failed|error:/i.test(value)) {
+    state.sdkDiagnostics.lastError=value.slice(0,220);
+  }
+  let detail=typeof value === "string" ? value : JSON.stringify(value);
+  if(detail.length>1400) detail=detail.slice(0,1397)+'...';
+  const line = new Date().toLocaleTimeString() + "  " + detail;
   const old = $('logs').textContent.split("\n");
-  $('logs').textContent = [...old.slice(-90), line].join("\n");
+  $('logs').textContent = [...old.slice(-34), line].join("\n");
   $('logs').scrollTop = $('logs').scrollHeight;
+  renderDiagnosticsSummary();
 }
 function setConnection(text, ok=false) { $('connection').textContent=text; $('connection').className='pill '+(ok?'ok':'bad'); }
 function deepWalk(root, visitor, depth=0) {
@@ -535,6 +626,7 @@ function renderCalculation() {
   } else $('brokerConstraintWarning').textContent='Broker min-distance validation has not passed; no execution is permitted.';
 
   $('preview').disabled=!state.connected;
+  renderDiagnosticsSummary();
   return {result,quoteFresh,profileFresh,accountSupport,symbolOk,brokerCheck};
 }
 function parseQuoteEvent(event) {
@@ -575,7 +667,7 @@ function loadSymbolDetails() {
       // Ignore a late response for a symbol that is no longer selected.
       if(Number(state.symbol?.id)!==expectedId)return;
       state.meta=normaliseMeta(r,expectedId);
-      if(!state.meta || state.meta.enabled!==true)log({error:'Exact symbol metadata missing or not explicitly enabled; preview blocked, no metadata defaults used.',response:r});
+      if(!state.meta || state.meta.enabled!==true)log({error:'Exact symbol metadata missing or not explicitly enabled; preview blocked, no metadata defaults used.',responseKeys:safeResponseKeys(r)});
       else log({symbolMetadataLoaded:state.symbol.name,pipPosition:state.meta.pipPosition,digits:state.meta.digits,lotSize:state.meta.lotSize,minVolume:state.meta.minVolume,maxVolume:state.meta.maxVolume,stepVolume:state.meta.stepVolume,slDistancePoints:state.meta.slDistancePoints,tpDistancePoints:state.meta.tpDistancePoints,maxExposureUsdCents:state.meta.maxExposureUsdCents,tickSizeAvailable:false});
       subscribeSelectedSymbol();renderCalculation();
     },error:e=>{log(`getSymbol failed: ${e?.message??e}`);renderCalculation();}
@@ -761,8 +853,8 @@ function setSelectedSymbol(id) {
 function wireLiveEvents() {
   quoteEvent(state.adapter).subscribe({next:event=>{
     const q=parseQuoteEvent(event);
-    if(q){state.quote=q;state.lastQuoteReceivedAt=Date.now();updateQuoteUI();renderCalculation();}
-    else { log({quoteIgnored:'quote did not contain matching symbol, valid prices and a fresh source timestamp'}); }
+    if(q){state.quote=q;state.lastQuoteReceivedAt=Date.now();state.sdkDiagnostics.quoteStatus='Fresh quote event received';updateQuoteUI();renderCalculation();}
+    else { state.sdkDiagnostics.quoteRejectedCount++; state.sdkDiagnostics.quoteStatus='Quote event failed symbol/price/timestamp checks'; log({quoteIgnored:'quote did not contain matching symbol, valid prices and a fresh source timestamp'});renderDiagnosticsSummary(); }
   },error:e=>log(`Quote stream error: ${e?.message??e}`)});
   executionEvent(state.adapter).subscribe({next:event=>{const route=state.executionCoordinator?.onExecutionEvent(event);if(route?.matched){$('eventReconciliationStatus').textContent='Correlated event processed; review execution ledger';log({executionEventMatched:true,route});}else{log({executionEventObserved:true,event});}},error:e=>log(`Execution event stream error: ${e?.message??e}`)});
 }
