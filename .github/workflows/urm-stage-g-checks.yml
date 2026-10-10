@@ -27,6 +27,7 @@ jobs:
           set -eu
           for file in \
             risk-core.mjs \
+            quote-data.mjs \
             plugin-policy.mjs \
             account-profile.mjs \
             evidence-integrity.mjs \
