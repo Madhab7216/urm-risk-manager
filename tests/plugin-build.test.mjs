@@ -193,3 +193,18 @@ test('quick diagnostics summary is concise while raw SDK logs are collapsed',()=
   assert.match(html,/if\(detail\.length>1400\) detail=detail\.slice\(0,1397\)\+'\.\.\.'/);
   assert.match(html,/executionEnabled:\s*false/);
 });
+
+
+test('quote event listeners attach before account and symbol requests',()=>{
+  const init=html.slice(html.indexOf('function initialiseHost()'),html.indexOf('function loadAccount()'));
+  assert.match(init,/wireLiveEvents\(\);loadAccount\(\);loadSymbols\(\);renderCalculation\(\);/);
+  assert.doesNotMatch(init,/loadAccount\(\);loadSymbols\(\);wireLiveEvents\(\)/);
+});
+
+test('quote diagnostics distinguish subscription acknowledgement from first quote event',()=>{
+  assert.match(html,/Acknowledged; waiting for first quote event/);
+  assert.match(html,/Subscription request pending/);
+  assert.match(html,/state\.sdkDiagnostics\.quoteSubscription='Quote event received'/);
+  assert.match(html,/Quote subscription failed:/);
+  assert.match(html,/executionEnabled:\s*false/);
+});
