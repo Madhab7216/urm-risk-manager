@@ -145,3 +145,15 @@ test('does not retain the legacy dark stylesheet override after theme variables'
   assert.doesNotMatch(html, /\.metric\{[^}]*background:#0b1424/);
   assert.doesNotMatch(html, /input,select\{[^}]*background:#0b1424/);
 });
+
+
+test('adds privacy-safe cTrader SDK response diagnostics for account and symbol parsing',()=>{
+  assert.match(html,/function accountResponseShape\(response\)/);
+  assert.match(html,/function accountGroupResponseShape\(response\)/);
+  assert.match(html,/function symbolListResponseShape\(response\)/);
+  assert.match(html,/sdkResponse:'getAccountInformation:first'/);
+  assert.match(html,/sdkResponse:'getAccountGroupInformation:first'/);
+  assert.match(html,/sdkResponse:'getLightSymbolList'/);
+  assert.match(html,/Diagnostic summaries deliberately log field names and counts only/);
+  assert.match(html,/executionEnabled:\s*false/);
+});
