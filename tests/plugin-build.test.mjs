@@ -178,3 +178,18 @@ test('symbol metadata accepts case variants but never guesses missing enabled st
   assert.match(html,/enabled:enabled===true/);
   assert.match(html,/executionEnabled:\s*false/);
 });
+
+
+test('quick diagnostics summary is concise while raw SDK logs are collapsed',()=>{
+  assert.match(html,/<h2>Quick diagnostics summary<\/h2>/);
+  assert.match(html,/id="diagHost"/);
+  assert.match(html,/id="diagAccount"/);
+  assert.match(html,/id="diagSymbols"/);
+  assert.match(html,/id="diagMeta"/);
+  assert.match(html,/id="diagQuote"/);
+  assert.match(html,/id="diagTickGrid"/);
+  assert.match(html,/<details class="card diag-raw">/);
+  assert.match(html,/<summary>Advanced raw SDK logs \(technical details\)<\/summary>/);
+  assert.match(html,/if\(detail\.length>1400\) detail=detail\.slice\(0,1397\)\+'\.\.\.'/);
+  assert.match(html,/executionEnabled:\s*false/);
+});
