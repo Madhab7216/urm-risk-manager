@@ -138,10 +138,10 @@ test('Stage G order submission remains locked after theme changes',()=>{
 
 
 test('does not retain the legacy dark stylesheet override after theme variables',()=>{
-  assert.equal((html.match(/\\.card h2\\{/g)||[]).length,1,'card heading rule must not be duplicated');
-  assert.equal((html.match(/\\.metric\\{/g)||[]).length,1,'metric background rule must not be duplicated');
-  assert.equal((html.match(/input,select\\{/g)||[]).length,1,'input theme rule must not be duplicated');
-  assert.doesNotMatch(html, /\\.card h2\\{[^}]*color:#cfe2ff/);
-  assert.doesNotMatch(html, /\\.metric\\{[^}]*background:#0b1424/);
-  assert.doesNotMatch(html, /input,select\\{[^}]*background:#0b1424/);
+  assert.equal((html.match(/\.card h2\{/g)||[]).length,1,'card heading rule must not be duplicated');
+  assert.equal((html.match(/\.metric\{/g)||[]).length,1,'metric background rule must not be duplicated');
+  assert.equal((html.match(/input,select\{/g)||[]).length,1,'input theme rule must not be duplicated');
+  assert.doesNotMatch(html, /\.card h2\{[^}]*color:#cfe2ff/);
+  assert.doesNotMatch(html, /\.metric\{[^}]*background:#0b1424/);
+  assert.doesNotMatch(html, /input,select\{[^}]*background:#0b1424/);
 });
