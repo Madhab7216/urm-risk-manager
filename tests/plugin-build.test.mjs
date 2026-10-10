@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const html=readFileSync(resolve(root,'index.html'),'utf8');
+const quoteData=readFileSync(resolve(root,'quote-data.mjs'),'utf8');
 const engine=readFileSync(resolve(root,'execution-engine.mjs'),'utf8');
 const policy=readFileSync(resolve(root,'plugin-policy.mjs'),'utf8');
 const evidence=readFileSync(resolve(root,'evidence-integrity.mjs'),'utf8');
@@ -47,7 +48,9 @@ test('symbol list requires an explicit enabled===true even across SDK field casi
 });
 
 test('freshness uses cTrader source timestamp as well as local receipt time',()=>{
-  assert.match(html,/timestamp=Number\(o\.timestamp\)/);
+  assert.match(html,/parseQuoteEventPayload\(event/);
+  assert.match(quoteData,/const PRICE_SCALE = 100000/);
+  assert.match(quoteData,/Number\(nowMs\) - timestamp/);
   assert.match(html,/quoteAgeMs=state\.quote \? now-Number\(state\.quote\.timestamp\)/);
   assert.match(html,/first quote may be a market-closed snapshot/i);
 });
