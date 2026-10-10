@@ -234,42 +234,76 @@ function deepWalk(root, visitor, depth=0) {
   for (const value of Object.values(root)) if (value && typeof value === 'object') deepWalk(value,visitor,depth+1);
 }
 function findNestedObject(root, pred) { let found=null; deepWalk(root,o=>{if(!found && pred(o)) found=o;}); return found; }
+// SDK-generated models can surface the same protobuf fields in camelCase or
+// PascalCase depending on the wrapper. Match names case-insensitively, but
+// never invent a value or coerce a missing boolean to true.
+function fieldValue(object, ...aliases) {
+  if (!object || typeof object !== 'object') return undefined;
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(object, alias)) return object[alias];
+  }
+  const wanted=new Set(aliases.map(x=>String(x).toLowerCase()));
+  const actual=Object.keys(object).find(key=>wanted.has(key.toLowerCase()));
+  return actual===undefined ? undefined : object[actual];
+}
+function responsePayloadInfo(response) {
+  const key=response && typeof response==='object'
+    ? Object.keys(response).find(k=>k.toLowerCase()==='payload') : undefined;
+  const payload=key===undefined ? undefined : response[key];
+  return {
+    envelopePayloadPresent:key!==undefined,
+    envelopePayloadType:payload===null?'null':Array.isArray(payload)?'array':typeof payload,
+    envelopePayloadKeys:payload && typeof payload==='object' && !Array.isArray(payload)?safeResponseKeys(payload):[],
+    envelopePayloadItemCount:Array.isArray(payload)?payload.length:null,
+    envelopePayloadStringLength:typeof payload==='string'?payload.length:null
+  };
+}
 function normaliseSymbols(result) {
-  // Current ProtoGetLightSymbolListRes exposes a repeated `symbol` field.
-  // Fail closed: an absent `enabled` flag is not treated as enabled.
+  // ProtoGetLightSymbolListRes contains repeated ProtoLightSymbol values.
+  // The enabled flag is optional in the SDK: only an explicit boolean true
+  // grants a candidate entry in this trade-oriented selector.
   let candidates=[];
   deepWalk(result,o=>{
-    if(Array.isArray(o.symbol)) candidates.push(...o.symbol);
-    if(Array.isArray(o.symbols)) candidates.push(...o.symbols);
+    for (const key of Object.keys(o)) {
+      const lower=key.toLowerCase();
+      if ((lower==='symbol' || lower==='symbols') && Array.isArray(o[key])) candidates.push(...o[key]);
+    }
   });
   const normal=candidates.map(s=>({
-    id:Number(s.id ?? s.symbolId),
-    name:String(s.name ?? s.symbolName ?? ''),
-    enabled:s.enabled===true,
+    id:Number(fieldValue(s,'id','symbolId')),
+    name:String(fieldValue(s,'name','symbolName') ?? ''),
+    enabled:fieldValue(s,'enabled')===true,
     raw:s
   })).filter(s=>Number.isSafeInteger(s.id)&&s.id>=0&&s.name&&s.enabled);
   return [...new Map(normal.map(s=>[s.id,s])).values()].sort((a,b)=>a.name.localeCompare(b.name));
 }
 function normaliseMeta(result, symbolId) {
-  const raw=findNestedObject(result,o=>(Number(o.symbolId ?? o.id)===Number(symbolId)) &&
-      Number.isInteger(Number(o.pipPosition)) && Number.isInteger(Number(o.digits)) &&
-      o.lotSize!==undefined && o.minVolume!==undefined && o.maxVolume!==undefined && o.stepVolume!==undefined);
+  const raw=findNestedObject(result,o=>(Number(fieldValue(o,'symbolId','id'))===Number(symbolId)) &&
+      Number.isInteger(Number(fieldValue(o,'pipPosition'))) && Number.isInteger(Number(fieldValue(o,'digits'))) &&
+      fieldValue(o,'lotSize')!==undefined && fieldValue(o,'minVolume')!==undefined &&
+      fieldValue(o,'maxVolume')!==undefined && fieldValue(o,'stepVolume')!==undefined);
   if(!raw) return null;
+  const symbolIdValue=fieldValue(raw,'symbolId','id');
+  const enabled=fieldValue(raw,'enabled');
+  const slDistance=fieldValue(raw,'slDistance');
+  const tpDistance=fieldValue(raw,'tpDistance');
+  const maxExposure=fieldValue(raw,'maxExposure');
+  const tickTimestamp=fieldValue(raw,'utcLastUpdateTimestamp');
   return {
     ...raw,
-    symbolId:Number(raw.symbolId ?? raw.id),
-    enabled:raw.enabled===true,
-    pipPosition:Number(raw.pipPosition),
-    digits:Number(raw.digits),
-    lotSize:Number(raw.lotSize),
-    minVolume:Number(raw.minVolume),
-    maxVolume:Number(raw.maxVolume),
-    stepVolume:Number(raw.stepVolume),
-    slDistancePoints:raw.slDistance===undefined || raw.slDistance===null ? null : Number(raw.slDistance),
-    tpDistancePoints:raw.tpDistance===undefined || raw.tpDistance===null ? null : Number(raw.tpDistance),
-    maxExposureUsdCents:raw.maxExposure===undefined || raw.maxExposure===null ? null : Number(raw.maxExposure),
-    guaranteedStopLoss:raw.guaranteedStopLoss===true,
-    tradingMetadataUpdatedAt:raw.utcLastUpdateTimestamp===undefined ? null : Number(raw.utcLastUpdateTimestamp)
+    symbolId:Number(symbolIdValue),
+    enabled:enabled===true,
+    pipPosition:Number(fieldValue(raw,'pipPosition')),
+    digits:Number(fieldValue(raw,'digits')),
+    lotSize:Number(fieldValue(raw,'lotSize')),
+    minVolume:Number(fieldValue(raw,'minVolume')),
+    maxVolume:Number(fieldValue(raw,'maxVolume')),
+    stepVolume:Number(fieldValue(raw,'stepVolume')),
+    slDistancePoints:slDistance===undefined || slDistance===null ? null : Number(slDistance),
+    tpDistancePoints:tpDistance===undefined || tpDistance===null ? null : Number(tpDistance),
+    maxExposureUsdCents:maxExposure===undefined || maxExposure===null ? null : Number(maxExposure),
+    guaranteedStopLoss:fieldValue(raw,'guaranteedStopLoss')===true,
+    tradingMetadataUpdatedAt:tickTimestamp===undefined ? null : Number(tickTimestamp)
   };
 }
 function getDigits(meta) { return Number.isInteger(Number(meta?.digits)) ? Number(meta.digits) : 5; }
@@ -372,9 +406,23 @@ function captureEvidence(kind) {
   log({manualEvidenceAttested:kind,source:result.evidence.source,contextBound:true,attestedAt:new Date(result.evidence.attestedAtMs).toISOString()});
   return true;
 }
+function normaliseTraderObject(raw) {
+  if(!raw || typeof raw!=='object') return null;
+  return {
+    ...raw,
+    Login:fieldValue(raw,'Login','login'),
+    balance:fieldValue(raw,'balance'),
+    moneyDigits:fieldValue(raw,'moneyDigits'),
+    equity:fieldValue(raw,'equity'),
+    BrokerName:fieldValue(raw,'BrokerName','brokerName'),
+    accountType:fieldValue(raw,'accountType'),
+    isLimitedRisk:fieldValue(raw,'isLimitedRisk')
+  };
+}
 function traderFromResponse(result) {
-  return findNestedObject(result,o=>(o.Login!==undefined || o.login!==undefined) &&
-    (o.balance!==undefined || o.accountType!==undefined)) ?? null;
+  const raw=findNestedObject(result,o=>(fieldValue(o,'Login')!==undefined) &&
+    (fieldValue(o,'balance')!==undefined || fieldValue(o,'accountType')!==undefined));
+  return raw ? normaliseTraderObject(raw) : null;
 }
 function traderFingerprint(trader) { return trader ? accountCoreFingerprint(trader) : null; }
 function invalidateAccountSnapshot(message, details={}) {
@@ -536,21 +584,31 @@ function loadSymbolDetails() {
 function pickBalanceEquity(result) {
   // Clear first so an incomplete/new-account response cannot leave values from the prior account visible.
   state.balance=null; state.equity=null;
-  // ProtoTrader guarantees balance; equity may not be part of the public response, so parse it only if present.
-  const o=findNestedObject(result,x=>x.balance!==undefined && x.moneyDigits!==undefined);
+  // ProtoTrader guarantees balance; field names are read case-insensitively to support SDK wrapper casing.
+  const o=findNestedObject(result,x=>fieldValue(x,'balance')!==undefined && fieldValue(x,'moneyDigits')!==undefined);
   if(!o)return;
-  const digits=Number(o.moneyDigits);if(!Number.isInteger(digits)||digits<0||digits>8)return;
-  const div=Math.pow(10,digits);const b=Number(o.balance)/div;
+  const digits=Number(fieldValue(o,'moneyDigits'));
+  const rawBalance=fieldValue(o,'balance');
+  if(!Number.isInteger(digits)||digits<0||digits>8)return;
+  const div=Math.pow(10,digits);const b=Number(rawBalance)/div;
   if(Number.isFinite(b)) state.balance=b;
-  if(o.equity!==undefined){const e=Number(o.equity)/div;if(Number.isFinite(e))state.equity=e;}
+  const rawEquity=fieldValue(o,'equity');
+  if(rawEquity!==undefined){const e=Number(rawEquity)/div;if(Number.isFinite(e))state.equity=e;}
 }
 function accountGroupExplicitlyDisabled(result) {
-  const node=findNestedObject(result,x=>typeof x.depositCurrency==='string' && /^[A-Za-z]{3}$/.test(x.depositCurrency) && Object.prototype.hasOwnProperty.call(x,'enabled'));
-  return node?.enabled===false;
+  const node=findNestedObject(result,x=>{
+    const currency=fieldValue(x,'depositCurrency');
+    return typeof currency==='string' && /^[A-Za-z]{3}$/.test(currency) && fieldValue(x,'enabled')!==undefined;
+  });
+  return fieldValue(node,'enabled')===false;
 }
 function findDepositCurrency(result) {
-  const root=findNestedObject(result,x=>typeof x.depositCurrency==='string' && /^[A-Za-z]{3}$/.test(x.depositCurrency));
-  return root?.depositCurrency?.toUpperCase()??null;
+  const root=findNestedObject(result,x=>{
+    const currency=fieldValue(x,'depositCurrency');
+    return typeof currency==='string' && /^[A-Za-z]{3}$/.test(currency);
+  });
+  const currency=fieldValue(root,'depositCurrency');
+  return typeof currency==='string'?currency.toUpperCase():null;
 }
 function safeResponseKeys(value) {
   if(!value || typeof value !== 'object' || Array.isArray(value)) return [];
@@ -560,23 +618,28 @@ function safeResponseKeys(value) {
 // balance, equity, account identifiers, broker labels or full symbol payloads.
 function accountResponseShape(response) {
   const rootKeys=safeResponseKeys(response);
-  const trader=findNestedObject(response,o=>(o.Login!==undefined || o.login!==undefined));
+  const trader=findNestedObject(response,o=>fieldValue(o,'Login')!==undefined);
   const parsedTrader=traderFromResponse(response);
   const inspect=parsedTrader ?? trader;
-  const has=(key)=>!!inspect && Object.prototype.hasOwnProperty.call(inspect,key);
-  const type=(key)=>has(key)?typeof inspect[key]:'missing';
+  const actual = key => fieldValue(inspect,key);
+  const type=(key)=>actual(key)===undefined?'missing':typeof actual(key);
   return {
     rootKeys,
+    ...responsePayloadInfo(response),
     parserFoundTrader:!!parsedTrader,
     traderObjectFound:!!trader,
     traderKeys:safeResponseKeys(inspect),
     fieldPresence:{
-      Login:has('Login'),login:has('login'),balance:has('balance'),moneyDigits:has('moneyDigits'),
-      BrokerName:has('BrokerName'),brokerName:has('brokerName'),accountType:has('accountType'),isLimitedRisk:has('isLimitedRisk')
+      Login:actual('Login')!==undefined,
+      balance:actual('balance')!==undefined,
+      moneyDigits:actual('moneyDigits')!==undefined,
+      BrokerName:actual('BrokerName','brokerName')!==undefined,
+      accountType:actual('accountType')!==undefined,
+      isLimitedRisk:actual('isLimitedRisk')!==undefined
     },
     fieldTypes:{
-      Login:type('Login'),login:type('login'),balance:type('balance'),moneyDigits:type('moneyDigits'),
-      BrokerName:type('BrokerName'),brokerName:type('brokerName'),accountType:type('accountType'),isLimitedRisk:type('isLimitedRisk')
+      Login:type('Login'),balance:type('balance'),moneyDigits:type('moneyDigits'),
+      BrokerName:type('BrokerName'),accountType:type('accountType'),isLimitedRisk:type('isLimitedRisk')
     }
   };
 }
@@ -584,6 +647,7 @@ function accountGroupResponseShape(response) {
   const currency=findDepositCurrency(response);
   return {
     rootKeys:safeResponseKeys(response),
+    ...responsePayloadInfo(response),
     depositCurrencyFound:!!currency,
     depositCurrency:currency ?? 'MISSING',
     explicitDisabled:accountGroupExplicitlyDisabled(response)
@@ -593,25 +657,27 @@ function symbolListResponseShape(response) {
   const rootKeys=safeResponseKeys(response);
   const collections=[];
   deepWalk(response,o=>{
-    for(const key of ['symbol','symbols','Symbol','Symbols']) {
-      if(Array.isArray(o[key])) collections.push({field:key,items:o[key]});
+    for(const key of Object.keys(o)) {
+      const lower=key.toLowerCase();
+      if((lower==='symbol'||lower==='symbols') && Array.isArray(o[key])) collections.push({field:key,items:o[key]});
     }
   });
   const items=collections.flatMap(x=>x.items);
   const fields=items.length?safeResponseKeys(items[0]):[];
-  const hasId=x=>!!x && typeof x==='object' && (x.id!==undefined || x.symbolId!==undefined);
-  const hasName=x=>!!x && typeof x==='object' && (x.name!==undefined || x.symbolName!==undefined);
+  const hasId=x=>!!x && typeof x==='object' && fieldValue(x,'id','symbolId')!==undefined;
+  const hasName=x=>!!x && typeof x==='object' && fieldValue(x,'name','symbolName')!==undefined;
   const count=(fn)=>items.filter(fn).length;
   return {
     rootKeys,
+    ...responsePayloadInfo(response),
     repeatedCollections:collections.map(x=>({field:x.field,count:x.items.length})),
     candidateCount:items.length,
     firstItemKeys:fields,
     candidatesWithId:count(hasId),
     candidatesWithName:count(hasName),
-    enabledTrue:count(x=>x && x.enabled===true),
-    enabledFalse:count(x=>x && x.enabled===false),
-    enabledMissingOrNonBoolean:count(x=>!x || typeof x.enabled!=='boolean')
+    enabledTrue:count(x=>x && fieldValue(x,'enabled')===true),
+    enabledFalse:count(x=>x && fieldValue(x,'enabled')===false),
+    enabledMissingOrNonBoolean:count(x=>!x || typeof fieldValue(x,'enabled')!=='boolean')
   };
 }
 function initialiseHost() {
