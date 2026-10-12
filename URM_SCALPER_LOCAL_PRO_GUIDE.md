@@ -46,6 +46,7 @@ The private candle-state output and internal rules of TradingView's LuxAlgo and 
 | Setup expiry | 30 M1 bars |
 | BE / lock / trail | +1R / +1.7R at +2R / trail from +3R |
 | Trail gap / floor | 1R / +2R |
+| Minimum SL advance per broker modification | 2 ticks |
 
 ## What is and is not validated
 
