@@ -27,7 +27,10 @@ test('strategy uses closed M5 breakout plus M1 pullback and an explicit OB retes
 });
 
 test('USD risk sizing is cross-checked against broker volume limits and margin', () => {
-  assert.match(source, /AssetConverter\.Convert\(FixedRiskUsd, "USD", Account\.Asset\.Name\)/);
+  assert.match(source, /AssetConverter\.Convert\(riskUsd, "USD", Account\.Asset\.Name\)/);
+  assert.match(source, /private bool TryCalculateTicket/);
+  assert.match(source, /VolumeForFixedRisk/);
+  assert.match(source, /AmountRisked/);
   assert.match(source, /VolumeForFixedRisk/);
   assert.match(source, /NormalizeVolumeInUnits\(rawVolume, RoundingMode\.Down\)/);
   assert.match(source, /AmountRisked/);
