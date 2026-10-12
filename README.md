@@ -36,9 +36,9 @@
 - `execution-engine.mjs` — testable execution lifecycle prototype; not enabled for submission.
 - `position-manager-policy.mjs` — pure R-policy/label calculator with source/timestamp-bound tick-grid guard.
 - `cbot/URMCalibrationProbe.cs` — Demo-only, read-only platform calibration and account inventory report.
-- `cbot/URMScalperLocalPro.cs` — combined local Desktop strategy: M5 closed-bar breakout, M1 opposing pullback break, mechanical M5 Order Block, USD fixed-risk, verified server SL/TP, R ladder and candle-colour-flip trailing proxy.
+- `cbot/URMScalperLocalPro.cs` — combined local Desktop strategy plus on-chart **Trade Ticket / Positions & Trail / Strategy** tabs. The Trade Ticket uses cTrader native USD-to-deposit conversion, fixed-risk volume sizing, TickSize validation, margin and broker-minimum checks; the Positions tab controls the R-ladder/candle-flip proxy and displays current URM position SL/TP.
 - `cbot/URMScalperLocalPro.csproj` — isolated cTrader Automate build project; the GitHub workflow produces an importable `.algo` artifact.
-- `URM_SCALPER_LOCAL_PRO_GUIDE.md` — strategy definitions, safe installation, parameter defaults and validation limits.
+- `URM_SCALPER_LOCAL_PRO_GUIDE.md` — strategy definitions, Trade Ticket use, safe installation, parameter defaults and validation limits.
 - `cbot/URMDemoOneShotExecutor.cs` — legacy native one-shot Demo execution prototype; do not run it alongside the combined Local Pro cBot.
 - `URM_DEMO_ONE_SHOT_EXECUTOR_GUIDE.md` — legacy one-shot Demo-use guide.
 - `cbot/URMRLadderPositionManager.cs` — legacy separate Demo-only R-ladder manager; do not run it alongside Local Pro for the same positions.
