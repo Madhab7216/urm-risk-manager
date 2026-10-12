@@ -1,6 +1,6 @@
 # URM cTrader Advanced Risk Manager — Stage G v1.0
 
-**Status: diagnostic calibration build only. Order submission is locked.** This stage adds a Demo-only, read-only cTrader Algo calibration probe and a local validator for its copied output. It does not enable live trading, does not authenticate pasted reports, and does not connect the Web Plugin to the cBot.
+**Web Plugin status: diagnostic preview only; plugin order submission remains locked.** A separate native cTrader Automate one-shot executor has been added for controlled Demo testing; it is opt-in (confirmation defaults to false), is not wired to the Web Plugin, and has not been compiled in the installed cTrader environment. The calibration probe and copied-report validator remain read-only and cannot authorize execution.
 
 ## Approved risk policy
 
@@ -22,6 +22,7 @@
 4. **Local report parser** (`tools/validate-calibration-report.mjs`). It validates syntax, snapshot consistency, staleness, UTC timestamps, masked account identifier, symbol expectations, Demo flag, required terminal NOTE, explicit BLOCK records, duplicate inventory IDs, inventory counts and the fixed $10 policy. It always returns `authenticated:false`, `executionAllowed:false`, and `releaseGateCanBeUnlockedByThisReport:false`.
 5. **Tests** for report parsing and cBot static safety properties, including off-tick-grid stop/quote guards.
 6. **Execution authority decision** explains why the Web Plugin and cBot are not assumed to share state or a control channel.
+7. **Native Demo execution slice** (`cbot/URMDemoOneShotExecutor.cs`) adds one explicitly confirmed Demo market order with a fresh platform tick, authoritative Algo TickSize, fixed-USD-10 estimated price-risk sizing, attached initial SL/TP, and post-fill structural-SL / 5R protection verification. Its default parameter sends no order.
 
 ## Project layout
 
@@ -34,6 +35,8 @@
 - `execution-engine.mjs` — testable execution lifecycle prototype; not enabled for submission.
 - `position-manager-policy.mjs` — pure R-policy/label calculator with source/timestamp-bound tick-grid guard.
 - `cbot/URMCalibrationProbe.cs` — Demo-only, read-only platform calibration and account inventory report.
+- `cbot/URMDemoOneShotExecutor.cs` — native one-shot Demo execution prototype; explicit confirmation defaults to false and broker Demo compilation/testing is still required.
+- `URM_DEMO_ONE_SHOT_EXECUTOR_GUIDE.md` — step-by-step cBot compilation, preflight and one-shot Demo-use guide.
 - `cbot/URMPositionObserver.cs` — separate read-only position observer prototype; compile status unverified.
 - `tools/validate-calibration-report.mjs` — local validator for copied report text; diagnostic only.
 - `tests/*.test.mjs` — local automated tests.
@@ -71,7 +74,7 @@ node --check tools/validate-calibration-report.mjs
 node --test tests/*.test.mjs
 ```
 
-The suite includes report-parser tests, static safety checks for the probe source, and inline Web Plugin module syntax checks. These tests do **not** compile C#, run inside cTrader WebView, or test broker execution.
+The suite includes report-parser tests, static safety checks for both cBot sources, and inline Web Plugin module syntax checks. These tests do **not** compile C#, run inside cTrader WebView, or test broker execution.
 
 ## Explicit blockers — do not enable execution
 
@@ -83,4 +86,4 @@ The suite includes report-parser tests, static safety checks for the probe sourc
 - No partial-fill, server-confirmed SL/TP, local/Cloud restart, account-switch, or live host integration test has been performed.
 - The `maxExposure` aggregate still requires a defined authoritative exposure calculation and review of positions plus pending orders across the relevant account model.
 
-The package is **for diagnostic calibration and research only**. Keep order execution disabled until all release gates have been independently completed in cTrader Demo.
+The Web Plugin remains **preview-only and hard-locked**. The separate one-shot cBot is an opt-in Demo test path, not a production-ready or full URM R-ladder manager. Keep the Plugin locked and do not use the cBot on a Live account. Do not consider either component fully validated until C# compilation, broker-host Demo execution, protection read-back, failure recovery, and all relevant release gates have been independently completed.
