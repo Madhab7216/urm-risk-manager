@@ -9,6 +9,7 @@ const source = readFileSync(resolve(root, 'cbot/URMDemoOneShotExecutor.cs'), 'ut
 const guide = readFileSync(resolve(root, 'URM_DEMO_ONE_SHOT_EXECUTOR_GUIDE.md'), 'utf8');
 
 test('one-shot cBot is Demo-only with opt-in confirmation disabled by default', () => {
+  assert.match(source, /Application\.EnvironmentType != EnvironmentType\.Desktop/);
   assert.match(source, /if\s*\(Account\.IsLive\)/);
   assert.match(source, /\[Parameter\("Confirm one-shot DEMO order", DefaultValue = false\)\]/);
   assert.match(source, /if\s*\(!ConfirmOneShotDemoOrder\)/);
