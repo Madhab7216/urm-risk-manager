@@ -279,8 +279,11 @@ function renderDiagnosticsSummary() {
   } else put('diagMeta',state.symbol?'Selected symbol; details missing/incomplete':'No symbol selected','warn');
 
   const quoteAge=state.quote?Date.now()-Number(state.quote.timestamp):Infinity;
-  if(state.quote && quoteAge>=0 && quoteAge<MAX_QUOTE_AGE_MS && Date.now()-state.lastQuoteReceivedAt<MAX_QUOTE_AGE_MS)
-    put('diagQuote',`${state.symbol?.name??'Symbol'}: Bid ${fmtPrice(state.quote.bid)} / Ask ${fmtPrice(state.quote.ask)} (fresh)`,'good');
+  const quoteReceiptFresh=!!state.quote && quoteAge>=0 && quoteAge<MAX_QUOTE_AGE_MS && Date.now()-state.lastQuoteReceivedAt<MAX_QUOTE_AGE_MS;
+  if(quoteReceiptFresh && state.quote.sourceTimestampVerified===true)
+    put('diagQuote',`${state.symbol?.name??'Symbol'}: Bid ${fmtPrice(state.quote.bid)} / Ask ${fmtPrice(state.quote.ask)} (broker timestamp verified)`,'good');
+  else if(quoteReceiptFresh && state.quote.sourceTimestampVerified!==true)
+    put('diagQuote',`${state.symbol?.name??'Symbol'}: Bid ${fmtPrice(state.quote.bid)} / Ask ${fmtPrice(state.quote.ask)} (receipt-time preview only; source timestamp missing)`,'warn');
   else {
     const diag=d.lastQuoteEvent;
     const reason=diag?.reason ? ` (${diag.reason})` : '';
@@ -301,7 +304,9 @@ function renderDiagnosticsSummary() {
   else if(!state.symbol) next='Next: no validated tradable symbol is selected.';
   else if(!state.meta) next='Next: inspect getSymbol response; detailed symbol fields are incomplete or missing.';
   else if(!state.quote || quoteAge<0 || quoteAge>=MAX_QUOTE_AGE_MS || Date.now()-state.lastQuoteReceivedAt>=MAX_QUOTE_AGE_MS)
-    next='Next: wait for a fresh timestamped quote. A subscription acknowledgement alone is not a quote.';
+    next='Next: wait for a fresh quote event.';
+  else if(state.quote.sourceTimestampVerified!==true)
+    next='Next: receipt-time quote preview is available, but the broker source timestamp is missing. This cannot authorize order execution.';
   else next='Next: quote is fresh, but pip value, EUR/USD conversion, commission and broker price-grid checks remain separate.';
   if(d.lastError && d.lastError!=='No SDK error recorded') next+=` Last SDK issue: ${d.lastError}`;
   const nextEl=$('diagNextStep'); if(nextEl) nextEl.textContent=next;
@@ -617,7 +622,8 @@ function renderCalculation() {
   if(!profileFresh) $('accountModelWarning').textContent='Account snapshot is missing or stale. Refresh required; no verified account-scoped preview is available.';
   else if(!accountSupport.ok) $('accountModelWarning').textContent=`Preview blocked [${accountSupport.code}]: ${accountSupport.reason}`;
   if(!state.connected) $('currencyWarning').textContent='cTrader host is not connected.';
-  else if(!quoteFresh) $('currencyWarning').textContent='Quote is missing or stale. The quote timestamp from cTrader and local receive time must both be within 10 seconds. The first quote may be a market-closed snapshot.';
+  else if(!quoteFresh) $('currencyWarning').textContent='Quote is missing or stale. Wait for a new cTrader quote event.'; 
+  else if(state.quote?.sourceTimestampVerified!==true) $('currencyWarning').textContent='Preview only: cTrader supplied Bid/Ask without a source timestamp. Local receipt time keeps the preview from stalling, but it does not verify source price age; order execution remains blocked.';
   else if(!profileFresh) $('currencyWarning').textContent='Account details are stale or unverified. Waiting for a consistent fresh broker/account/currency snapshot.';
   else if(!accountSupport.ok) $('currencyWarning').textContent=`Account type not supported [${accountSupport.code}]: ${accountSupport.reason}`;
   else if(state.currency==='UNKNOWN') $('currencyWarning').textContent='Account deposit currency is not confirmed by the SDK response.';
@@ -626,7 +632,8 @@ function renderCalculation() {
   else if(!result?.ok) $('currencyWarning').textContent=`Calculation blocked [${result?.code??'INPUT_NOT_READY'}]: ${result?.reason??'Review the risk inputs and verify their source.'}`;
   else $('currencyWarning').textContent=`Risk estimate ready: estimated price loss ${fmt(result.estimatedRisk)} ${state.currency} (about $${fmt(result.estimatedRiskUsd)}). Commission is displayed separately and excluded from volume sizing. This is not order approval.`;
 
-  if(!quoteFresh) $('brokerConstraintWarning').textContent='Broker-distance checks waiting for a fresh timestamped quote.';
+  if(!quoteFresh) $('brokerConstraintWarning').textContent='Broker-distance checks waiting for a fresh quote.';
+  else if(state.quote?.sourceTimestampVerified!==true) $('brokerConstraintWarning').textContent='Receipt-time quote preview only: broker-source timestamp is unavailable. Do not treat broker-distance validation as execution approval.';
   else if(!state.meta || !Number.isFinite(state.meta.slDistancePoints) || !Number.isFinite(state.meta.tpDistancePoints)) $('brokerConstraintWarning').textContent='Broker min SL/TP distance fields are missing. Preview remains blocked until both are present in the current symbol response.';
   else if(result?.ok && brokerCheck && !brokerCheck.ok) $('brokerConstraintWarning').textContent=`Broker constraint failed [${brokerCheck.code}]: ${brokerCheck.reason}`;
   else if(result?.ok && brokerCheck?.ok) {
@@ -645,7 +652,8 @@ function parseQuoteEvent(event) {
   const result=parseQuoteEventPayload(event,{
     expectedSymbolId:state.symbol?.id,
     nowMs:Date.now(),
-    maxAgeMs:MAX_QUOTE_AGE_MS
+    maxAgeMs:MAX_QUOTE_AGE_MS,
+    allowReceiptTimeFallback:true
   });
   state.sdkDiagnostics.lastQuoteEvent=result.diagnostic;
   return result.quote;
@@ -873,8 +881,12 @@ function wireLiveEvents() {
     const q=parseQuoteEvent(event);
     if(q){
       state.quote=q;state.lastQuoteReceivedAt=Date.now();
-      state.sdkDiagnostics.quoteStatus='Fresh quote event received';
-      state.sdkDiagnostics.quoteSubscription='Quote event received';
+      state.sdkDiagnostics.quoteStatus=q.sourceTimestampVerified===true
+        ? 'Fresh broker-timestamped quote event received'
+        : 'Bid/Ask received; source timestamp missing (preview only)';
+      state.sdkDiagnostics.quoteSubscription=q.sourceTimestampVerified===true
+        ? 'Quote event received'
+        : 'Quote event received (receipt-time fallback only)';
       updateQuoteUI();renderCalculation();
     }
     else {
