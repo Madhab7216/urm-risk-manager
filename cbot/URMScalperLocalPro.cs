@@ -33,6 +33,9 @@ namespace cAlgo.Robots
         [Parameter("Max URM positions account-wide", Group = "01. Execution", DefaultValue = 1, MinValue = 1, MaxValue = 10)]
         public int MaxUrmPositionsAccountWide { get; set; }
 
+        [Parameter("Block entries with foreign exposure", Group = "01. Execution", DefaultValue = true)]
+        public bool BlockEntriesWithForeignExposure { get; set; }
+
         [Parameter("Fixed price risk USD", Group = "02. Risk", DefaultValue = 10.0, MinValue = 1.0, MaxValue = 10000.0)]
         public double FixedRiskUsd { get; set; }
 
@@ -444,6 +447,12 @@ namespace cAlgo.Robots
                 CountUrmPositions() >= MaxUrmPositionsAccountWide || HasUrmPendingOrder())
             {
                 Print("URM_LOCAL|ENTRY_BLOCK|URM_EXPOSURE_OR_PENDING_ORDER_EXISTS");
+                return;
+            }
+
+            if (BlockEntriesWithForeignExposure && HasForeignExposure())
+            {
+                Print("URM_LOCAL|ENTRY_BLOCK|FOREIGN_ACCOUNT_EXPOSURE_EXISTS");
                 return;
             }
 
@@ -884,6 +893,26 @@ namespace cAlgo.Robots
             {
                 if (pending != null && !string.IsNullOrEmpty(pending.Label) &&
                     pending.Label.StartsWith("URM1|", StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool HasForeignExposure()
+        {
+            for (var i = 0; i < Positions.Count; i++)
+            {
+                var p = Positions[i];
+                if (p != null && (string.IsNullOrEmpty(p.Label) ||
+                    !p.Label.StartsWith(LabelPrefix, StringComparison.Ordinal)))
+                    return true;
+            }
+
+            foreach (var pending in PendingOrders)
+            {
+                if (pending != null && (string.IsNullOrEmpty(pending.Label) ||
+                    !pending.Label.StartsWith(LabelPrefix, StringComparison.Ordinal)))
                     return true;
             }
 
