@@ -1609,6 +1609,21 @@ namespace cAlgo.Robots
             return Math.Round(ticks * Symbol.TickSize, Symbol.Digits, MidpointRounding.AwayFromZero);
         }
 
+        private void Block(string code, string reason)
+        {
+            Print("URM_LOCAL|ENTRY_BLOCK|{0}|{1}", code, reason);
+        }
+
+        private static bool IsOnTickGrid(double price, double tickSize)
+        {
+            if (!FinitePositive(price) || !FinitePositive(tickSize))
+                return false;
+
+            var ticks = price / tickSize;
+            return double.IsFinite(ticks) &&
+                   Math.Abs(ticks - Math.Round(ticks)) <= 1e-6;
+        }
+
         private static bool FinitePositive(double value)
         {
             return !double.IsNaN(value) && !double.IsInfinity(value) && value > 0.0;
