@@ -52,6 +52,12 @@ namespace cAlgo.Robots
 
         private void RunPreflightAndMaybeSubmit()
         {
+            if (Application.EnvironmentType != EnvironmentType.Desktop)
+            {
+                Block("DESKTOP_ENVIRONMENT_REQUIRED", "Run this executor inside local cTrader Desktop Automate; Cloud/CLI are not supported for this one-shot manager workflow.");
+                return;
+            }
+
             if (Account.IsLive)
             {
                 Block("LIVE_ACCOUNT_NOT_ALLOWED", "This cBot only runs on a cTrader Demo account.");
