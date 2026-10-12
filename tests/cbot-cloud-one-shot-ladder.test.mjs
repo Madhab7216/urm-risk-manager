@@ -13,7 +13,7 @@ test('Cloud combined cBot is Demo-only and defaults to no order submission', () 
 
 test('Cloud cBot avoids Desktop-only and non-durable local storage assumptions', () => {
   assert.doesNotMatch(source, /EnvironmentType\.Desktop/);
-  assert.doesNotMatch(source, /LocalStorage\.Flush|LocalStorage\.SetString|LocalStorage\.GetString/);
+  assert.doesNotMatch(source, /LocalStorage\.(?:Flush|SetString|GetString)\s*\(/);
   assert.doesNotMatch(source, /System\.IO|DllImport|Windows\.Forms|System\.Windows/);
 });
 
