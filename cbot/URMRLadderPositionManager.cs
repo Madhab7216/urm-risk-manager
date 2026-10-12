@@ -224,7 +224,7 @@ namespace cAlgo.Robots
                 return;
             }
 
-            if (!EnsurePeakStateLoaded(position, source, structuralSL, rDistance, tickSize))
+            if (!EnsurePeakStateLoaded(position, source, clientOrderId, structuralSL, tickSize))
                 return;
 
             double bid = suppliedBid;
@@ -280,7 +280,7 @@ namespace cAlgo.Robots
             {
                 // Persist each new high-water before any stop action. If storage fails,
                 // do not trail using an in-memory-only peak that would be lost on restart.
-                if (!PersistPeakNow(position.Id, peak))
+                if (!PersistPeakNow(position, clientOrderId, structuralSL, peak))
                 {
                     _stateInvalid.Add(position.Id);
                     LogState(position, "PEAK_STATE_WRITE_FAILED", "CRITICAL",
@@ -413,7 +413,7 @@ namespace cAlgo.Robots
                     currentR, peak, targetStopR, readBackSL.Value, readBackTP.Value));
         }
 
-        private bool EnsurePeakStateLoaded(Position position, string source, double structuralSL, double rDistance, double tickSize)
+        private bool EnsurePeakStateLoaded(Position position, string source, string clientOrderId, double structuralSL, double tickSize)
         {
             var id = position.Id;
             if (_stateInvalid.Contains(id) || _manualIntervention.Contains(id))
@@ -433,15 +433,12 @@ namespace cAlgo.Robots
 
             if (!string.IsNullOrEmpty(stored))
             {
-                const string prefix = "URMP1|PEAK=";
-                if (!stored.StartsWith(prefix, StringComparison.Ordinal) ||
-                    !double.TryParse(stored.Substring(prefix.Length), NumberStyles.Float,
-                        CultureInfo.InvariantCulture, out var savedPeak) ||
-                    double.IsNaN(savedPeak) || double.IsInfinity(savedPeak) || savedPeak < 0.0)
+                if (!TryParsePeakRecord(stored, position, clientOrderId, structuralSL, tickSize, out var savedPeak))
                 {
                     _stateInvalid.Add(id);
-                    LogState(position, "PEAK_STATE_CORRUPT", "CRITICAL",
-                        "Saved peak-R record is corrupt/unknown-version; manual reconciliation is required.");
+                    _manualIntervention.Add(id);
+                    LogState(position, "PEAK_STATE_INVALID_OR_MISMATCHED", "CRITICAL",
+                        "Saved high-water record is corrupt or does not match this exact position ID, symbol, side, entry and structural SL. Manual reconciliation is required.");
                     return false;
                 }
 
@@ -457,7 +454,7 @@ namespace cAlgo.Robots
             {
                 _peakRByPosition[id] = 0.0;
                 _loaded.Add(id);
-                if (!PersistPeakNow(id, 0.0))
+                if (!PersistPeakNow(position, clientOrderId, structuralSL, 0.0))
                 {
                     _loaded.Remove(id);
                     _stateInvalid.Add(id);
@@ -474,23 +471,63 @@ namespace cAlgo.Robots
             return false;
         }
 
-        private bool PersistPeakNow(int positionId, double peak)
+        private bool PersistPeakNow(Position position, string clientOrderId, double structuralSL, double peak)
         {
-            if (!FiniteNonNegative(peak) || !EnsureAccountContext("PEAK_PERSIST"))
+            if (position == null || !FiniteNonNegative(peak) || !EnsureAccountContext("PEAK_PERSIST"))
                 return false;
             try
             {
-                LocalStorage.SetString(PeakStorageKey(positionId),
-                    "URMP1|PEAK=" + peak.ToString("R", CultureInfo.InvariantCulture),
-                    LocalStorageScope.Type);
+                var side = position.TradeType == TradeType.Buy ? "BUY" : "SELL";
+                var value = "URMP1|ID=" + clientOrderId +
+                    "|SYM=" + position.SymbolName +
+                    "|SIDE=" + side +
+                    "|ENTRY=" + position.EntryPrice.ToString("R", CultureInfo.InvariantCulture) +
+                    "|SL=" + structuralSL.ToString("R", CultureInfo.InvariantCulture) +
+                    "|PEAK=" + peak.ToString("R", CultureInfo.InvariantCulture);
+                if (value.Contains("|SYM=|") || position.SymbolName.Contains("|"))
+                    return false;
+
+                LocalStorage.SetString(PeakStorageKey(position.Id), value, LocalStorageScope.Type);
                 LocalStorage.Flush(LocalStorageScope.Type);
                 return true;
             }
             catch (Exception ex)
             {
-                Print("URM_PM|CRITICAL|PEAK_STATE_PERSIST_EXCEPTION|positionId={0}|error={1}|No SL change will be sent.", positionId, ex.GetType().Name);
+                Print("URM_PM|CRITICAL|PEAK_STATE_PERSIST_EXCEPTION|positionId={0}|error={1}|No SL change will be sent.", position.Id, ex.GetType().Name);
                 return false;
             }
+        }
+
+        private static bool TryParsePeakRecord(string stored, Position position, string clientOrderId,
+            double structuralSL, double tickSize, out double peak)
+        {
+            peak = double.NaN;
+            if (string.IsNullOrEmpty(stored) || position == null)
+                return false;
+
+            var fields = stored.Split('|');
+            if (fields.Length != 7 || fields[0] != "URMP1" ||
+                fields[1] != "ID=" + clientOrderId ||
+                fields[2] != "SYM=" + position.SymbolName ||
+                fields[3] != "SIDE=" + (position.TradeType == TradeType.Buy ? "BUY" : "SELL") ||
+                !fields[4].StartsWith("ENTRY=", StringComparison.Ordinal) ||
+                !fields[5].StartsWith("SL=", StringComparison.Ordinal) ||
+                !fields[6].StartsWith("PEAK=", StringComparison.Ordinal))
+                return false;
+
+            if (!double.TryParse(fields[4].Substring(6), NumberStyles.Float, CultureInfo.InvariantCulture, out var savedEntry) ||
+                !double.TryParse(fields[5].Substring(3), NumberStyles.Float, CultureInfo.InvariantCulture, out var savedSL) ||
+                !double.TryParse(fields[6].Substring(5), NumberStyles.Float, CultureInfo.InvariantCulture, out var savedPeak) ||
+                !FinitePositive(savedEntry) || !FinitePositive(savedSL) || !FiniteNonNegative(savedPeak))
+                return false;
+
+            var tolerance = Math.Max(tickSize * 1e-6, Math.Abs(position.EntryPrice) * 1e-12);
+            if (Math.Abs(savedEntry - position.EntryPrice) > tolerance ||
+                Math.Abs(savedSL - structuralSL) > tolerance)
+                return false;
+
+            peak = savedPeak;
+            return true;
         }
 
         private void RemovePeakState(int positionId)
