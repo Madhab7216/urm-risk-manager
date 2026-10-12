@@ -54,7 +54,7 @@ test('management is monotonic, uses fresh ticks and never changes TP or closes p
   assert.match(manager, /MarketData\.GetTicks\(Symbol\.Name\)/);
   assert.match(manager, /MaximumTickAgeSeconds = 5/);
   assert.match(manager, /stopIsImprovement/);
-  assert.match(manager, /ModifyPosition\(position, targetSL, position\.TakeProfit, false, StopTriggerMethod\.Trade\)/);
+  assert.match(manager, /ModifyPosition\(position, targetSL, position\.TakeProfit, ProtectionType\.Absolute, false, StopTriggerMethod\.Trade\)/);
   assert.match(manager, /readBackSL/);
   assert.match(manager, /readBackTP/);
   assert.doesNotMatch(manager, /ClosePosition\(/);
