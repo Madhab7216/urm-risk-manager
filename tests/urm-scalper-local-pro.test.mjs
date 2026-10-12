@@ -53,6 +53,7 @@ test('R management stores immutable original structural SL in position label', (
   assert.match(source, /TrailStartsAtR/);
   assert.match(source, /TrailGapR/);
   assert.match(source, /TrailFloorR/);
+  assert.match(source, /MinimumStopAdvanceTicks/);
   assert.match(source, /SL_ADVANCED/);
   assert.match(source, /R_LADDER_THRESHOLDS_INCONSISTENT/);
   assert.match(source, /M1_PULLBACK_MIN_EXCEEDS_MAX/);
