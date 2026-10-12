@@ -205,9 +205,18 @@ test('quote event listeners attach before account and symbol requests',()=>{
 });
 
 test('quote diagnostics distinguish subscription acknowledgement from first quote event',()=>{
-  assert.match(html,/Acknowledged; waiting for first quote event/);
+  assert.match(html,/Acknowledged; timestamp requested; waiting for first quote event/);
   assert.match(html,/Subscription request pending/);
   assert.match(html,/state\.sdkDiagnostics\.quoteSubscription='Quote event received'/);
   assert.match(html,/Quote subscription failed:/);
+  assert.match(html,/executionEnabled:\s*false/);
+});
+
+
+test('quote diagnostics show timestamp request and event fields in the short summary',()=>{
+  assert.ok(html.includes('timestamp field: ${timestampField}; keys: ${eventKeys || \'not available\'}'));
+  assert.ok(html.includes("Acknowledged; timestamp requested; waiting for first quote event"));
+  assert.ok(html.includes("subscribeToSpotTimestamp:true"));
+  assert.ok(html.includes("enableStaleQuotesFiltering:false"));
   assert.match(html,/executionEnabled:\s*false/);
 });
