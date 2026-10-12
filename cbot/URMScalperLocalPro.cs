@@ -111,6 +111,23 @@ namespace cAlgo.Robots
         private bool _entryConfigurationValid = true;
         private bool _ladderConfigurationValid = true;
 
+        private TabControl _panelTabs;
+        private TextBox _ticketStopBox;
+        private TextBox _ticketRiskBox;
+        private TextBlock _ticketPreviewText;
+        private TextBlock _ticketStatusText;
+        private TextBlock _positionStatusText;
+        private TextBlock _strategyStatusText;
+        private CheckBox _ticketOrderConfirm;
+        private CheckBox _liveExecutionConsent;
+        private CheckBox _autoEntryToggle;
+        private CheckBox _ladderToggle;
+        private CheckBox _candleTrailToggle;
+        private bool _runtimeAutoEntryEnabled;
+        private bool _runtimeLadderEnabled;
+        private bool _runtimeCandleTrailEnabled;
+        private DateTime _lastPanelRefreshUtc = DateTime.MinValue;
+
         private bool _setupActive;
         private TradeType _setupSide;
         private DateTime _setupCloseTime = DateTime.MinValue;
@@ -141,6 +158,10 @@ namespace cAlgo.Robots
                     TakeProfitR > TrailStartsAtR &&
                     TakeProfitR > TrailFloorR;
 
+                _runtimeAutoEntryEnabled = EnableNewEntries;
+                _runtimeLadderEnabled = EnableRLadder;
+                _runtimeCandleTrailEnabled = EnableCandleFlipTrail;
+
                 if (!_entryConfigurationValid)
                     Print("URM_LOCAL|CONFIG_ERROR|M1_PULLBACK_MIN_EXCEEDS_MAX|entries_blocked=true");
                 if (!_ladderConfigurationValid)
@@ -153,27 +174,37 @@ namespace cAlgo.Robots
                     return;
                 }
 
+                BuildTradingPanel();
+                Timer.Start(TimeSpan.FromSeconds(1));
+
                 _m1 = MarketData.GetBars(TimeFrame.Minute, Symbol.Name);
                 _m5 = MarketData.GetBars(TimeFrame.Minute5, Symbol.Name);
 
-                if (_m1 == null || _m5 == null || _m1.Count < 10 || _m5.Count < M5SwingLookback + 3)
+                if (_m1 == null || _m5 == null)
                 {
-                    Print("URM_LOCAL|WAIT|NOT_ENOUGH_M1_M5_HISTORY|symbol={0}", Symbol.Name);
-                    Stop();
+                    Print("URM_LOCAL|WAIT|M1_M5_DATA_UNAVAILABLE|manual_ticket_remains_available=true");
                     return;
                 }
 
-                // Startup is deliberately non-retroactive: never enter from an old historical signal.
-                _lastM1CurrentOpen = _m1.OpenTimes.LastValue;
-                _lastM1ClosedOpen = _m1.OpenTimes[_m1.Count - 2];
-                _lastM5ClosedOpen = _m5.OpenTimes[_m5.Count - 2];
+                // Startup is non-retroactive: never enter on an old historical signal.
+                if (_m1.Count >= 2)
+                {
+                    _lastM1CurrentOpen = _m1.OpenTimes.LastValue;
+                    _lastM1ClosedOpen = _m1.OpenTimes[_m1.Count - 2];
+                }
+                if (_m5.Count >= 2)
+                    _lastM5ClosedOpen = _m5.OpenTimes[_m5.Count - 2];
 
-                Print("URM_LOCAL|STARTED|symbol={0}|live={1}|entriesEnabled={2}|liveEntriesAllowed={3}|riskUSD={4:F2}|TP_R={5:F2}|m5Lookback={6}|OBRequired={7}",
-                    Symbol.Name, Account.IsLive, EnableNewEntries, AllowLiveEntries,
+                if (_m1.Count < 10 || _m5.Count < M5SwingLookback + 3)
+                    Print("URM_LOCAL|WAIT|NOT_ENOUGH_M1_M5_HISTORY|symbol={0}|manual_ticket_remains_available=true", Symbol.Name);
+
+                Print("URM_LOCAL|STARTED|symbol={0}|live={1}|autoEntriesParam={2}|autoEntriesRuntime={3}|liveEntriesAllowed={4}|riskUSD={5:F2}|TP_R={6:F2}|m5Lookback={7}|OBRequired={8}|ticketUI=OPEN",
+                    Symbol.Name, Account.IsLive, EnableNewEntries, _runtimeAutoEntryEnabled, AllowLiveEntries,
                     FixedRiskUsd, TakeProfitR, M5SwingLookback, RequireOrderBlockRetest);
                 Print("URM_LOCAL|RULES|M5 close beyond prior swing; M1 opposite-color pullback then close-break; SL=pullback extreme+buffer; BE@{0}R; lock +{1}R at {2}R; trail@{3}R gap={4}R floor={5}R; candle-color flip is a native proxy, not Sideways Alarm output.",
                     BreakEvenAtR, LockToR, LockAtR, TrailStartsAtR, TrailGapR, TrailFloorR);
                 Print("URM_LOCAL|SAFETY|Only one URM instance per account/symbol; stop old URM managers before starting this bot.");
+                RefreshTradingPanel();
             }
             catch (Exception ex)
             {
@@ -182,8 +213,14 @@ namespace cAlgo.Robots
             }
         }
 
+        protected override void OnTimer()
+        {
+            RefreshTradingPanel();
+        }
+
         protected override void OnTick()
         {
+            RefreshTradingPanelIfDue();
             if (_m1 == null || _m5 == null || _m1.Count < 3 || _m5.Count < M5SwingLookback + 3)
                 return;
 
@@ -416,23 +453,32 @@ namespace cAlgo.Robots
                 _pullbackTouchedOb = true;
         }
 
-        private void SubmitProtectedMarketOrder(TradeType side, double rawSwing)
+        private void SubmitProtectedMarketOrder(TradeType side, double rawSwing, bool manualTicket = false, double? riskOverrideUsd = null)
         {
-            if (!_entryConfigurationValid)
+            var riskUsd = riskOverrideUsd.HasValue ? riskOverrideUsd.Value : FixedRiskUsd;
+            if (!FinitePositive(riskUsd))
+            {
+                Print("URM_LOCAL|ENTRY_BLOCK|RISK_BUDGET_INVALID");
+                SetTicketStatus("Blocked: risk amount must be positive.");
+                return;
+            }
+
+            if (!manualTicket && !_entryConfigurationValid)
             {
                 Print("URM_LOCAL|ENTRY_BLOCK|INVALID_ENTRY_CONFIGURATION");
                 return;
             }
 
-            if (!EnableNewEntries)
+            if (!manualTicket && !_runtimeAutoEntryEnabled)
             {
-                Print("URM_LOCAL|ENTRY_BLOCK|NEW_ENTRIES_DISABLED");
+                Print("URM_LOCAL|ENTRY_BLOCK|AUTO_STRATEGY_ENTRIES_DISABLED");
                 return;
             }
 
-            if (Account.IsLive && !AllowLiveEntries)
+            if (Account.IsLive && (!AllowLiveEntries || _liveExecutionConsent == null || _liveExecutionConsent.IsChecked != true))
             {
-                Print("URM_LOCAL|ENTRY_BLOCK|LIVE_ENTRIES_NOT_EXPLICITLY_ALLOWED");
+                Print("URM_LOCAL|ENTRY_BLOCK|LIVE_REQUIRES_PARAMETER_AND_UI_CONFIRMATION");
+                SetTicketStatus("Blocked: Live needs the cBot parameter plus the Live confirmation checkbox.");
                 return;
             }
 
@@ -484,12 +530,26 @@ namespace cAlgo.Robots
             }
 
             var entryReference = side == TradeType.Buy ? ask : bid;
-            var stopCandidate = side == TradeType.Buy
-                ? rawSwing - StopBufferTicks * Symbol.TickSize
-                : rawSwing + StopBufferTicks * Symbol.TickSize;
-            var structuralStop = side == TradeType.Buy
-                ? RoundDownToTick(stopCandidate)
-                : RoundUpToTick(stopCandidate);
+            double structuralStop;
+            if (manualTicket)
+            {
+                if (!IsOnTickGrid(rawSwing, Symbol.TickSize))
+                {
+                    Block("TICKET_SL_OFF_TICK_GRID", "Entered structural SL is not aligned to exact broker TickSize.");
+                    SetTicketStatus("Blocked: entered SL does not align to broker TickSize.");
+                    return;
+                }
+                structuralStop = rawSwing;
+            }
+            else
+            {
+                var stopCandidate = side == TradeType.Buy
+                    ? rawSwing - StopBufferTicks * Symbol.TickSize
+                    : rawSwing + StopBufferTicks * Symbol.TickSize;
+                structuralStop = side == TradeType.Buy
+                    ? RoundDownToTick(stopCandidate)
+                    : RoundUpToTick(stopCandidate);
+            }
 
             if (!FinitePositive(entryReference) || !FinitePositive(structuralStop) ||
                 (side == TradeType.Buy && structuralStop >= entryReference) ||
@@ -507,10 +567,26 @@ namespace cAlgo.Robots
                 return;
             }
 
+            if (Symbol.MinDistanceType != SymbolMinDistanceType.Pips)
+            {
+                Block("UNSUPPORTED_MIN_DISTANCE_UNIT", "Broker minimum SL/TP distance is not reported in pips; fail closed rather than guess.");
+                SetTicketStatus("Blocked: broker minimum distance unit is not supported by this cBot version.");
+                return;
+            }
+
+            var minSlPriceDistance = Symbol.MinStopLossDistance * Symbol.PipSize;
+            var minSlExecutableDistance = side == TradeType.Buy ? bid - structuralStop : structuralStop - ask;
+            if (minSlExecutableDistance < minSlPriceDistance - Symbol.TickSize * 0.01)
+            {
+                Block("BROKER_MIN_SL_DISTANCE", "SL is closer to executable price than broker minimum.");
+                SetTicketStatus("Blocked: SL breaches broker minimum distance.");
+                return;
+            }
+
             double depositRiskBudget;
             try
             {
-                depositRiskBudget = AssetConverter.Convert(FixedRiskUsd, "USD", Account.Asset.Name);
+                depositRiskBudget = AssetConverter.Convert(riskUsd, "USD", Account.Asset.Name);
             }
             catch (Exception ex)
             {
@@ -563,10 +639,10 @@ namespace cAlgo.Robots
                 return;
             }
 
-            if (!FiniteNonNegative(estimatedRiskUsd) || estimatedRiskUsd > FixedRiskUsd + RiskToleranceUsd)
+            if (!FiniteNonNegative(estimatedRiskUsd) || estimatedRiskUsd > riskUsd + RiskToleranceUsd)
             {
                 Print("URM_LOCAL|ENTRY_BLOCK|ESTIMATED_RISK_OVER_BUDGET|riskUsd={0:F4}|budgetUsd={1:F2}",
-                    estimatedRiskUsd, FixedRiskUsd);
+                    estimatedRiskUsd, riskUsd);
                 return;
             }
 
@@ -596,14 +672,32 @@ namespace cAlgo.Robots
                 return;
             }
 
-            Print("URM_LOCAL|PREFLIGHT_PASS|symbol={0}|side={1}|volumeUnits={2}|entryRef={3}|structuralSL={4}|estimatedRiskUSD={5:F4}|margin={6}",
-                Symbol.Name, side, volume, entryReference, structuralStop, estimatedRiskUsd, estimatedMargin);
+            var previewTP = side == TradeType.Buy
+                ? RoundUpToTick(entryReference + TakeProfitR * Math.Abs(entryReference - structuralStop))
+                : RoundDownToTick(entryReference - TakeProfitR * Math.Abs(entryReference - structuralStop));
+            var minTpPriceDistance = Symbol.MinTakeProfitDistance * Symbol.PipSize;
+            var minTpExecutableDistance = side == TradeType.Buy ? previewTP - bid : ask - previewTP;
+            if (!FinitePositive(previewTP) || minTpExecutableDistance < minTpPriceDistance - Symbol.TickSize * 0.01)
+            {
+                Block("BROKER_MIN_TP_DISTANCE", "Calculated TP is closer to executable price than the broker minimum.");
+                SetTicketStatus("Blocked: calculated TP breaches broker minimum distance.");
+                return;
+            }
+
+            Print("URM_LOCAL|PREFLIGHT_PASS|symbol={0}|side={1}|volumeUnits={2}|lots={3:F4}|entryRef={4}|structuralSL={5}|estimatedRiskUSD={6:F4}|riskBudgetUSD={7:F2}|margin={8}",
+                Symbol.Name, side, volume, Symbol.VolumeInUnitsToQuantity(volume), entryReference, structuralStop, estimatedRiskUsd, riskUsd, estimatedMargin);
+            if (manualTicket)
+                SetTicketStatus(string.Format(CultureInfo.InvariantCulture,
+                    "Sending {0} {1:F4} lots on {2}; estimated price risk ${3:F2}. Awaiting protection confirmation...",
+                    side, Symbol.VolumeInUnitsToQuantity(volume), Symbol.Name, estimatedRiskUsd));
 
             TradeResult order;
             try
             {
                 order = ExecuteMarketOrder(side, Symbol.Name, volume, label, stopPips,
-                    stopPips * TakeProfitR, "URM Local Pro M5-M1", false, StopTriggerMethod.Trade);
+                    stopPips * TakeProfitR,
+                    manualTicket ? "URM Local Pro Trade Ticket" : "URM Local Pro M5-M1",
+                    false, StopTriggerMethod.Trade);
             }
             catch (Exception ex)
             {
@@ -640,7 +734,7 @@ namespace cAlgo.Robots
                 return;
             }
 
-            if (!FiniteNonNegative(filledRiskUsd) || filledRiskUsd > FixedRiskUsd + RiskToleranceUsd)
+            if (!FiniteNonNegative(filledRiskUsd) || filledRiskUsd > riskUsd + RiskToleranceUsd)
             {
                 EmergencyClose(position, "FILLED_ESTIMATED_RISK_OVER_BUDGET_" + filledRiskUsd.ToString("F4", CultureInfo.InvariantCulture));
                 return;
@@ -681,6 +775,11 @@ namespace cAlgo.Robots
 
             Print("URM_LOCAL|ORDER_PROTECTED|id={0}|symbol={1}|side={2}|fill={3}|units={4}|SL={5}|TP5R={6}|estimatedRiskUSD={7:F4}",
                 position.Id, Symbol.Name, side, fill, position.VolumeInUnits, structuralStop, target, filledRiskUsd);
+            if (manualTicket)
+                SetTicketStatus(string.Format(CultureInfo.InvariantCulture,
+                    "ORDER PROTECTED: {0} {1:F4} lots | fill {2} | server SL {3} | TP {4} | estimated risk ${5:F2}",
+                    side, Symbol.VolumeInUnitsToQuantity(position.VolumeInUnits), fill, structuralStop, target, filledRiskUsd));
+            RefreshTradingPanel();
         }
 
         private void ManagePositions(bool applyCandleFlip, int previousClosedIndex, int closedIndex)
@@ -740,7 +839,7 @@ namespace cAlgo.Robots
                     continue;
                 }
 
-                if (!EnableRLadder || !_ladderConfigurationValid)
+                if (!EnableRLadder || !_runtimeLadderEnabled || !_ladderConfigurationValid)
                     continue;
 
                 var targetStop = double.NaN;
@@ -779,7 +878,7 @@ namespace cAlgo.Robots
                     stage = "R_TRAIL";
                 }
 
-                if (applyCandleFlip && EnableCandleFlipTrail && rNow >= TrailStartsAtR &&
+                if (applyCandleFlip && EnableCandleFlipTrail && _runtimeCandleTrailEnabled && rNow >= TrailStartsAtR &&
                     previousClosedIndex >= 0 && closedIndex >= 1)
                 {
                     var prevOpen = _m1.OpenPrices[previousClosedIndex];
@@ -930,6 +1029,471 @@ namespace cAlgo.Robots
             }
 
             return false;
+        }
+
+
+        private void BuildTradingPanel()
+        {
+            var tradePanel = new StackPanel { Orientation = Orientation.Vertical, Width = 350, Margin = 8 };
+            tradePanel.AddChild(new TextBlock { Text = "URM TRADE TICKET — LOCAL DESKTOP", Margin = 3 });
+            tradePanel.AddChild(new TextBlock { Text = "Symbol: " + Symbol.Name + " | Account: " + (Account.IsLive ? "LIVE" : "DEMO"), Margin = 3 });
+            tradePanel.AddChild(new TextBlock { Text = "Automatic volume uses cTrader native fixed-risk API and broker volume rules.", Margin = 3 });
+
+            var slRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 2 };
+            slRow.AddChild(new TextBlock { Text = "Structural SL price:", Width = 128, Margin = 2 });
+            _ticketStopBox = new TextBox { Text = "", Width = 180, Margin = 2 };
+            slRow.AddChild(_ticketStopBox);
+            tradePanel.AddChild(slRow);
+
+            var riskRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 2 };
+            riskRow.AddChild(new TextBlock { Text = "Risk budget USD:", Width = 128, Margin = 2 });
+            _ticketRiskBox = new TextBox { Text = FixedRiskUsd.ToString("F2", CultureInfo.InvariantCulture), Width = 180, Margin = 2 };
+            riskRow.AddChild(_ticketRiskBox);
+            tradePanel.AddChild(riskRow);
+
+            var previewRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 2 };
+            var previewBuy = new Button { Text = "Preview BUY", Width = 150, Margin = 2 };
+            var previewSell = new Button { Text = "Preview SELL", Width = 150, Margin = 2 };
+            previewBuy.Click += args => PreviewTicket(TradeType.Buy);
+            previewSell.Click += args => PreviewTicket(TradeType.Sell);
+            previewRow.AddChild(previewBuy);
+            previewRow.AddChild(previewSell);
+            tradePanel.AddChild(previewRow);
+
+            _ticketPreviewText = new TextBlock
+            {
+                Text = "Enter structural SL, then preview BUY or SELL. Preview never sends an order.",
+                Margin = 4
+            };
+            tradePanel.AddChild(_ticketPreviewText);
+
+            _ticketOrderConfirm = new CheckBox
+            {
+                Text = "Confirm this ONE order (auto-clears after click)",
+                IsChecked = false,
+                Margin = 3
+            };
+            tradePanel.AddChild(_ticketOrderConfirm);
+
+            _liveExecutionConsent = new CheckBox
+            {
+                Text = "I explicitly allow this panel to send LIVE orders",
+                IsChecked = false,
+                Margin = 3
+            };
+            tradePanel.AddChild(_liveExecutionConsent);
+
+            var orderRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = 2 };
+            var buy = new Button { Text = "PLACE BUY", Width = 150, Margin = 2 };
+            var sell = new Button { Text = "PLACE SELL", Width = 150, Margin = 2 };
+            buy.Click += args => PlaceTicketOrder(TradeType.Buy);
+            sell.Click += args => PlaceTicketOrder(TradeType.Sell);
+            orderRow.AddChild(buy);
+            orderRow.AddChild(sell);
+            tradePanel.AddChild(orderRow);
+
+            _ticketStatusText = new TextBlock
+            {
+                Text = "No order sent. Preview first and review all inputs.",
+                Margin = 4
+            };
+            tradePanel.AddChild(_ticketStatusText);
+            tradePanel.AddChild(new TextBlock
+            {
+                Text = "Preview does not send an order. Order placement recalculates risk/volume and checks quote, tick grid, spread, broker minimum distances, margin and exposure. A critical protection/close log requires immediate Trade Watch inspection.",
+                Margin = 3
+            });
+
+            var positionsPanel = new StackPanel { Orientation = Orientation.Vertical, Width = 350, Margin = 8 };
+            positionsPanel.AddChild(new TextBlock { Text = "POSITION MANAGER", Margin = 3 });
+            _ladderToggle = new CheckBox { Text = "Enable automatic R-ladder SL management", IsChecked = EnableRLadder, Margin = 3 };
+            _ladderToggle.Click += args =>
+            {
+                _runtimeLadderEnabled = _ladderToggle.IsChecked == true;
+                SetTicketStatus(_runtimeLadderEnabled ? "Automatic SL ladder enabled." : "Automatic SL ladder paused; server-side protection remains unchanged.");
+                Print("URM_LOCAL|UI|R_LADDER_ENABLED|value={0}", _runtimeLadderEnabled);
+                RefreshTradingPanel();
+            };
+            positionsPanel.AddChild(_ladderToggle);
+
+            _candleTrailToggle = new CheckBox { Text = "Enable M1 candle-flip trail proxy", IsChecked = EnableCandleFlipTrail, Margin = 3 };
+            _candleTrailToggle.Click += args =>
+            {
+                _runtimeCandleTrailEnabled = _candleTrailToggle.IsChecked == true;
+                Print("URM_LOCAL|UI|CANDLE_FLIP_TRAIL_ENABLED|value={0}", _runtimeCandleTrailEnabled);
+                RefreshTradingPanel();
+            };
+            positionsPanel.AddChild(_candleTrailToggle);
+
+            var refreshPositions = new Button { Text = "Refresh position / SL / TP status", Margin = 3 };
+            refreshPositions.Click += args => RefreshTradingPanel();
+            positionsPanel.AddChild(refreshPositions);
+
+            _positionStatusText = new TextBlock { Text = "Waiting for account position snapshot...", Margin = 4 };
+            positionsPanel.AddChild(_positionStatusText);
+            positionsPanel.AddChild(new TextBlock
+            {
+                Text = "This tab manages only URMSTRAT|V1| positions on this chart symbol. Stop legacy URM managers first. Inspect Trade Watch immediately after any CRITICAL or PROTECTION_WARNING log.",
+                Margin = 3
+            });
+
+            var strategyPanel = new StackPanel { Orientation = Orientation.Vertical, Width = 350, Margin = 8 };
+            strategyPanel.AddChild(new TextBlock { Text = "AUTOMATED STRATEGY", Margin = 3 });
+            _autoEntryToggle = new CheckBox { Text = "Enable M5 breakout → M1 confirmation entries", IsChecked = EnableNewEntries, Margin = 3 };
+            _autoEntryToggle.Click += args =>
+            {
+                _runtimeAutoEntryEnabled = _autoEntryToggle.IsChecked == true;
+                Print("URM_LOCAL|UI|AUTO_ENTRY_ENABLED|value={0}", _runtimeAutoEntryEnabled);
+                RefreshTradingPanel();
+            };
+            strategyPanel.AddChild(_autoEntryToggle);
+            _strategyStatusText = new TextBlock { Text = "Starting strategy state...", Margin = 4 };
+            strategyPanel.AddChild(_strategyStatusText);
+            strategyPanel.AddChild(new TextBlock
+            {
+                Text = "Rules: M5 close beyond prior swing, identify the last opposing M5 candle as OB range, wait for a 2–5 bar opposite-colour M1 pullback to retest it, then require an M1 close-break. This is an explicit native price-action proxy, not copied LuxAlgo/Sideways Alarm code.",
+                Margin = 3
+            });
+            strategyPanel.AddChild(new TextBlock
+            {
+                Text = "Live trading requires BOTH the Allow Live entries (explicit) cBot parameter and the Live confirmation checkbox on Trade Ticket. Automated entries also require the strategy toggle above.",
+                Margin = 3
+            });
+
+            _panelTabs = new TabControl
+            {
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top,
+                Width = 375,
+                Height = 600,
+                Margin = 8
+            };
+            _panelTabs.AddTab(new TabItem { Header = new TextBlock { Text = "Trade Ticket" }, Content = tradePanel });
+            _panelTabs.AddTab(new TabItem { Header = new TextBlock { Text = "Positions / Trail" }, Content = positionsPanel });
+            _panelTabs.AddTab(new TabItem { Header = new TextBlock { Text = "Strategy" }, Content = strategyPanel });
+            Chart.AddControl(_panelTabs);
+        }
+
+        private void PreviewTicket(TradeType side)
+        {
+            double stop;
+            double riskUsd;
+            if (!TryReadTicketInputs(out stop, out riskUsd))
+            {
+                _ticketPreviewText.Text = "Blocked: enter a valid positive SL price and USD risk amount.";
+                SetTicketStatus(_ticketPreviewText.Text);
+                return;
+            }
+
+            double volume;
+            double entry;
+            double estimatedRiskUsd;
+            double takeProfit;
+            string reason;
+            if (!TryCalculateTicket(side, stop, riskUsd, out volume, out entry, out estimatedRiskUsd, out takeProfit, out reason))
+            {
+                _ticketPreviewText.Text = "NOT READY — " + reason;
+                SetTicketStatus("Preview blocked: " + reason);
+                Print("URM_LOCAL|TICKET_PREVIEW_BLOCKED|side={0}|reason={1}", side, reason);
+                RefreshTradingPanel();
+                return;
+            }
+
+            var lots = Symbol.VolumeInUnitsToQuantity(volume);
+            _ticketPreviewText.Text = string.Format(CultureInfo.InvariantCulture,
+                "{0} {1} | entry≈{2} | SL={3} | TP={4} ({5:F1}R) | {6:F4} lots / {7:F0} units | risk estimate = ${8:F2}. Commission/slippage/gaps are separate.",
+                side, Symbol.Name, entry, stop, takeProfit, TakeProfitR, lots, volume, estimatedRiskUsd);
+            SetTicketStatus("Preview ready only. No order sent. Review side, SL, volume, risk, spread and account before arming one order.");
+            Print("URM_LOCAL|TICKET_PREVIEW|side={0}|entry={1}|SL={2}|TP={3}|lots={4:F4}|units={5}|riskUSD={6:F4}|budgetUSD={7:F2}",
+                side, entry, stop, takeProfit, lots, volume, estimatedRiskUsd, riskUsd);
+        }
+
+        private void PlaceTicketOrder(TradeType side)
+        {
+            if (_ticketOrderConfirm == null || _ticketOrderConfirm.IsChecked != true)
+            {
+                SetTicketStatus("Order blocked: tick the one-shot confirmation checkbox after checking the preview. It clears after every placement attempt.");
+                return;
+            }
+
+            // Consume confirmation before validation or broker call; no automatic retry.
+            _ticketOrderConfirm.IsChecked = false;
+
+            double stop;
+            double riskUsd;
+            if (!TryReadTicketInputs(out stop, out riskUsd))
+            {
+                SetTicketStatus("Order blocked: SL/risk input is invalid.");
+                return;
+            }
+
+            double volume;
+            double entry;
+            double estimatedRiskUsd;
+            double takeProfit;
+            string reason;
+            if (!TryCalculateTicket(side, stop, riskUsd, out volume, out entry, out estimatedRiskUsd, out takeProfit, out reason))
+            {
+                SetTicketStatus("Order blocked: " + reason);
+                Print("URM_LOCAL|TICKET_ORDER_BLOCKED|side={0}|reason={1}", side, reason);
+                return;
+            }
+
+            // Re-run every execution check inside the protected order method; this preview is not trusted as execution authority.
+            SubmitProtectedMarketOrder(side, stop, true, riskUsd);
+        }
+
+        private bool TryReadTicketInputs(out double stop, out double riskUsd)
+        {
+            stop = double.NaN;
+            riskUsd = double.NaN;
+            if (_ticketStopBox == null || _ticketRiskBox == null)
+                return false;
+
+            return double.TryParse(_ticketStopBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out stop) &&
+                   FinitePositive(stop) &&
+                   double.TryParse(_ticketRiskBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out riskUsd) &&
+                   FinitePositive(riskUsd);
+        }
+
+        private bool TryCalculateTicket(
+            TradeType side, double stop, double riskUsd,
+            out double volume, out double entry, out double estimatedRiskUsd, out double takeProfit, out string reason)
+        {
+            volume = double.NaN;
+            entry = double.NaN;
+            estimatedRiskUsd = double.NaN;
+            takeProfit = double.NaN;
+            reason = "UNKNOWN";
+
+            if (Account.IsLive && (!AllowLiveEntries || _liveExecutionConsent == null || _liveExecutionConsent.IsChecked != true))
+            {
+                reason = "LIVE_ENTRY_REQUIRES_PARAMETER_AND_PANEL_CONFIRMATION";
+                return false;
+            }
+            if (!Account.IsLive && !AllowDemoEntries)
+            {
+                reason = "DEMO_ENTRIES_DISABLED_IN_CBOT_PARAMETERS";
+                return false;
+            }
+            if (RequireHedgedAccount &&
+                Account.AccountType.ToString().IndexOf("Hedg", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                reason = "HEDGED_ACCOUNT_REQUIRED";
+                return false;
+            }
+            if (!Server.IsConnected || !Symbol.MarketHours.IsOpened() || !Symbol.IsTradingEnabled)
+            {
+                reason = "SERVER_DISCONNECTED_MARKET_CLOSED_OR_SYMBOL_DISABLED";
+                return false;
+            }
+            if (HasLegacyUrmPositionOrPendingOrder() ||
+                CountUrmPositions() >= MaxUrmPositionsAccountWide ||
+                HasUrmPendingOrder() ||
+                (BlockEntriesWithForeignExposure && HasForeignExposure()))
+            {
+                reason = "OPEN_POSITION_PENDING_ORDER_OR_UNRESOLVED_ACCOUNT_EXPOSURE_EXISTS";
+                return false;
+            }
+            if (Symbol.MinDistanceType != SymbolMinDistanceType.Pips)
+            {
+                reason = "BROKER_MIN_DISTANCE_UNIT_NOT_PIPS_FAIL_CLOSED";
+                return false;
+            }
+
+            double bid;
+            double ask;
+            if (!ReadFreshQuote(out bid, out ask))
+            {
+                reason = "QUOTE_MISSING_OR_STALE";
+                return false;
+            }
+            var spreadTicks = (ask - bid) / Symbol.TickSize;
+            if (!FiniteNonNegative(spreadTicks) || spreadTicks > MaxSpreadTicks)
+            {
+                reason = string.Format(CultureInfo.InvariantCulture, "SPREAD_TOO_WIDE_{0:F1}_TICKS", spreadTicks);
+                return false;
+            }
+            if (!IsOnTickGrid(stop, Symbol.TickSize))
+            {
+                reason = "SL_OFF_BROKER_TICK_GRID";
+                return false;
+            }
+
+            entry = side == TradeType.Buy ? ask : bid;
+            if (!FinitePositive(stop) ||
+                (side == TradeType.Buy && stop >= entry) ||
+                (side == TradeType.Sell && stop <= entry))
+            {
+                reason = "SL_ON_WRONG_SIDE_OF_ENTRY";
+                return false;
+            }
+
+            var stopPips = Math.Abs(entry - stop) / Symbol.PipSize;
+            if (!FinitePositive(stopPips))
+            {
+                reason = "SL_DISTANCE_INVALID";
+                return false;
+            }
+            var minSl = Symbol.MinStopLossDistance * Symbol.PipSize;
+            var slFromExecutable = side == TradeType.Buy ? bid - stop : stop - ask;
+            if (!FiniteNonNegative(slFromExecutable) || slFromExecutable + Symbol.TickSize * 0.01 < minSl)
+            {
+                reason = "SL_BREACHES_BROKER_MINIMUM_DISTANCE";
+                return false;
+            }
+
+            double riskDeposit;
+            try { riskDeposit = AssetConverter.Convert(riskUsd, "USD", Account.Asset.Name); }
+            catch { reason = "USD_TO_DEPOSIT_CURRENCY_CONVERSION_FAILED"; return false; }
+            if (!FinitePositive(riskDeposit))
+            {
+                reason = "USD_RISK_CONVERSION_INVALID";
+                return false;
+            }
+
+            double rawVolume;
+            try { rawVolume = Symbol.VolumeForFixedRisk(riskDeposit, stopPips, RoundingMode.Down); }
+            catch { reason = "CTRADER_FIXED_RISK_VOLUME_CALCULATION_FAILED"; return false; }
+            if (!FinitePositive(rawVolume))
+            {
+                reason = "CALCULATED_VOLUME_NOT_POSITIVE";
+                return false;
+            }
+
+            volume = Symbol.NormalizeVolumeInUnits(rawVolume, RoundingMode.Down);
+            if (!FinitePositive(volume) || volume < Symbol.VolumeInUnitsMin ||
+                volume > Symbol.VolumeInUnitsMax ||
+                volume > rawVolume + Math.Max(1e-8, Symbol.VolumeInUnitsStep * 1e-6))
+            {
+                reason = "NORMALIZED_VOLUME_OUTSIDE_BROKER_LIMITS";
+                return false;
+            }
+            var step = volume / Symbol.VolumeInUnitsStep;
+            if (!FiniteNonNegative(step) || Math.Abs(step - Math.Round(step)) > 1e-6)
+            {
+                reason = "NORMALIZED_VOLUME_OFF_BROKER_STEP";
+                return false;
+            }
+
+            try
+            {
+                var riskDepositEstimate = Symbol.AmountRisked(volume, stopPips);
+                estimatedRiskUsd = AssetConverter.Convert(riskDepositEstimate, Account.Asset.Name, "USD");
+            }
+            catch { reason = "RISK_CROSSCHECK_USD_CONVERSION_FAILED"; return false; }
+            if (!FiniteNonNegative(estimatedRiskUsd) || estimatedRiskUsd > riskUsd + RiskToleranceUsd)
+            {
+                reason = string.Format(CultureInfo.InvariantCulture,
+                    "ESTIMATED_RISK_{0:F2}_EXCEEDS_BUDGET_{1:F2}_USD", estimatedRiskUsd, riskUsd);
+                return false;
+            }
+
+            double estimatedMargin;
+            try { estimatedMargin = Symbol.GetEstimatedMargin(side, volume); }
+            catch { reason = "MARGIN_ESTIMATE_FAILED"; return false; }
+            if (!FiniteNonNegative(estimatedMargin) || Account.FreeMargin <= 0 ||
+                estimatedMargin > Account.FreeMargin * 0.90)
+            {
+                reason = "INSUFFICIENT_FREE_MARGIN";
+                return false;
+            }
+
+            takeProfit = side == TradeType.Buy
+                ? RoundUpToTick(entry + TakeProfitR * Math.Abs(entry - stop))
+                : RoundDownToTick(entry - TakeProfitR * Math.Abs(entry - stop));
+            var minTp = Symbol.MinTakeProfitDistance * Symbol.PipSize;
+            var tpFromExecutable = side == TradeType.Buy ? takeProfit - bid : ask - takeProfit;
+            if (!FinitePositive(takeProfit) || !FiniteNonNegative(tpFromExecutable) ||
+                tpFromExecutable + Symbol.TickSize * 0.01 < minTp)
+            {
+                reason = "TP_BREACHES_BROKER_MINIMUM_DISTANCE";
+                return false;
+            }
+
+            reason = "OK";
+            return true;
+        }
+
+        private void RefreshTradingPanel()
+        {
+            if (_panelTabs == null)
+                return;
+
+            double bid;
+            double ask;
+            var quoteReady = ReadFreshQuote(out bid, out ask);
+            var liveText = Account.IsLive ? "LIVE" : "DEMO";
+
+            if (_positionStatusText != null)
+            {
+                var lines = new List<string>();
+                lines.Add(string.Format(CultureInfo.InvariantCulture,
+                    "Account: {0} | Symbol: {1} | Deposit currency: {2}",
+                    liveText, Symbol.Name, Account.Asset == null ? "UNKNOWN" : Account.Asset.Name));
+                lines.Add(string.Format(CultureInfo.InvariantCulture,
+                    "Open URM positions: {0} | Auto ladder: {1} | Candle flip: {2}",
+                    CountUrmPositions(), _runtimeLadderEnabled && EnableRLadder, _runtimeCandleTrailEnabled && EnableCandleFlipTrail));
+
+                for (var i = 0; i < Positions.Count; i++)
+                {
+                    var p = Positions[i];
+                    if (p == null || p.SymbolName != Symbol.Name || string.IsNullOrEmpty(p.Label) ||
+                        !p.Label.StartsWith(LabelPrefix, StringComparison.Ordinal))
+                        continue;
+
+                    double initialSL;
+                    if (!TryParseOriginalStop(p.Label, out initialSL))
+                    {
+                        lines.Add(string.Format(CultureInfo.InvariantCulture,
+                            "Position {0}: label anchor unreadable — MANUAL RECONCILIATION REQUIRED", p.Id));
+                        continue;
+                    }
+
+                    var rDistance = Math.Abs(p.EntryPrice - initialSL);
+                    var price = p.TradeType == TradeType.Buy ? Symbol.Bid : Symbol.Ask;
+                    var rNow = rDistance > 0
+                        ? (p.TradeType == TradeType.Buy ? price - p.EntryPrice : p.EntryPrice - price) / rDistance
+                        : double.NaN;
+                    lines.Add(string.Format(CultureInfo.InvariantCulture,
+                        "ID {0} {1} | Units {2:F0} ({3:F4} lots) | Entry {4} | R {5:F2} | SL {6} | TP {7} | Net P/L {8:F2}",
+                        p.Id, p.TradeType, p.VolumeInUnits, Symbol.VolumeInUnitsToQuantity(p.VolumeInUnits),
+                        p.EntryPrice, rNow, p.StopLoss.HasValue ? p.StopLoss.Value.ToString("F" + Symbol.Digits, CultureInfo.InvariantCulture) : "MISSING",
+                        p.TakeProfit.HasValue ? p.TakeProfit.Value.ToString("F" + Symbol.Digits, CultureInfo.InvariantCulture) : "MISSING",
+                        p.NetProfit));
+                }
+
+                if (lines.Count == 2)
+                    lines.Add("No open URMSTRAT|V1| position on this symbol.");
+                _positionStatusText.Text = string.Join(Environment.NewLine, lines);
+            }
+
+            if (_strategyStatusText != null)
+            {
+                _strategyStatusText.Text = string.Format(CultureInfo.InvariantCulture,
+                    "Symbol {0} | {1} | quote {2} | auto entry {3} | M5 setup {4} | OB found {5} | M1 pullback bars {6}/{7} | risk ${8:F2} | TP {9:F1}R",
+                    Symbol.Name, liveText, quoteReady ? "fresh" : "STALE / UNAVAILABLE",
+                    _runtimeAutoEntryEnabled, _setupActive ? "ACTIVE" : "none",
+                    _obValid, _pullbackCount, MaxPullbackBars, FixedRiskUsd, TakeProfitR);
+            }
+        }
+
+        private void RefreshTradingPanelIfDue()
+        {
+            if (_panelTabs == null)
+                return;
+            if (_lastPanelRefreshUtc != DateTime.MinValue &&
+                (Server.TimeInUtc - _lastPanelRefreshUtc).TotalMilliseconds < 750)
+                return;
+            _lastPanelRefreshUtc = Server.TimeInUtc;
+            RefreshTradingPanel();
+        }
+
+        private void SetTicketStatus(string message)
+        {
+            if (_ticketStatusText != null)
+                _ticketStatusText.Text = message;
+            Print("URM_LOCAL|PANEL_STATUS|{0}", message);
         }
 
         private bool HasUrmPendingOrder()
