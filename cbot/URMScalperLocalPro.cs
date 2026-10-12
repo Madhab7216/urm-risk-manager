@@ -309,34 +309,9 @@ namespace cAlgo.Robots
             var oppositeColor = _setupSide == TradeType.Buy ? close < open : close > open;
             var buffer = M1BreakoutBufferTicks * Symbol.TickSize;
 
-            // A fresh structural extreme invalidates the active micro-pullback; the current
-            // opposite candle may start a new pullback immediately.
-            if (_pullbackActive)
-            {
-                var structureBroken = _setupSide == TradeType.Buy
-                    ? low < _pullbackLow - Symbol.TickSize * 0.1
-                    : high > _pullbackHigh + Symbol.TickSize * 0.1;
-                if (structureBroken)
-                    ResetPullback();
-            }
-
             if (oppositeColor)
             {
                 AddPullbackBar(high, low);
-
-                if (_obValid && high >= _obLow && low <= _obHigh)
-                    _pullbackTouchedOb = true;
-
-                if (_pullbackCount >= MaxPullbackBars)
-                {
-                    // Keep a bounded micro-pattern window rather than letting it drift indefinitely.
-                    var touched = _pullbackTouchedOb;
-                    _pullbackHigh = high;
-                    _pullbackLow = low;
-                    _pullbackCount = 1;
-                    _pullbackTouchedOb = touched || (_obValid && high >= _obLow && low <= _obHigh);
-                }
-
                 return;
             }
 
@@ -379,6 +354,16 @@ namespace cAlgo.Robots
             if (!_pullbackActive)
             {
                 _pullbackActive = true;
+                _pullbackCount = 1;
+                _pullbackHigh = high;
+                _pullbackLow = low;
+                _pullbackTouchedOb = _obValid && high >= _obLow && low <= _obHigh;
+                return;
+            }
+
+            if (_pullbackCount >= MaxPullbackBars)
+            {
+                // Start a rolling bounded window with the newest opposite candle.
                 _pullbackCount = 1;
                 _pullbackHigh = high;
                 _pullbackLow = low;
