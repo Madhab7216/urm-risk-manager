@@ -286,7 +286,8 @@ function renderDiagnosticsSummary() {
     const reason=diag?.reason ? ` (${diag.reason})` : '';
     const eventKeys=Array.isArray(diag?.eventKeys) ? diag.eventKeys.slice(0,10).join(', ') : '';
     const timestampField=diag?.timestampField ?? 'missing';
-    const eventShape=diag ? `; timestamp field: ${timestampField}; keys: ${eventKeys || 'not available'}` : '';
+    const timestampSource=diag?.timestampFieldSource ? ` (${diag.timestampFieldSource})` : '';
+    const eventShape=diag ? `; timestamp field: ${timestampField}${timestampSource}; keys: ${eventKeys || 'not available'}` : '';
     put('diagQuote',`${d.quoteSubscription}; ${d.quoteStatus}${reason}${eventShape}; rejected/invalid events: ${d.quoteRejectedCount}`,'warn');
   }
 
