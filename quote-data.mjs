@@ -163,7 +163,7 @@ export function parseQuoteEventPayload(event, {
       continue;
     }
 
-    const stampMissing = !stampField.found || stampField.value === null || stampField.value === "";
+    const stampMissing = !stampField.found || stampField.value === undefined || stampField.value === null || stampField.value === "";
     if (stampMissing) {
       if (allowReceiptTimeFallback && Number.isFinite(Number(nowMs)) && Number(nowMs) > 0) {
         // The quote payload has no source timestamp. Use host receipt time strictly
