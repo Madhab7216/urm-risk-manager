@@ -111,7 +111,9 @@ function diagFor(object, reason, extras = {}) {
 export function parseQuoteEventPayload(event, {
   expectedSymbolId,
   nowMs = Date.now(),
-  maxAgeMs = 10000
+  maxAgeMs = 10000,
+  // Preview-only fallback. Never implies broker/source timestamp verification.
+  allowReceiptTimeFallback = false
 } = {}) {
   const objects = collectObjects(event);
   const candidates = objects.filter(object => field(object, "symbolId").found);
@@ -150,19 +152,43 @@ export function parseQuoteEventPayload(event, {
       lastDiagnostic = { reason: "bid_or_ask_field_missing", ...shape() };
       continue;
     }
-    if (!stampField.found || stampField.value === null || stampField.value === "") {
-      lastDiagnostic = { reason: "source_timestamp_missing", ...shape() };
-      continue;
-    }
+
+    // Validate quote content before deciding how to handle its optional timestamp.
     const bidRaw = Number(bidField.value);
     const askRaw = Number(askField.value);
-    const timestamp = Number(stampField.value);
     const bid = bidRaw / PRICE_SCALE;
     const ask = askRaw / PRICE_SCALE;
     if (!Number.isFinite(bidRaw) || !Number.isFinite(askRaw) || bid <= 0 || ask < bid) {
       lastDiagnostic = { reason: "invalid_bid_ask_values", ...shape() };
       continue;
     }
+
+    const stampMissing = !stampField.found || stampField.value === null || stampField.value === "";
+    if (stampMissing) {
+      if (allowReceiptTimeFallback && Number.isFinite(Number(nowMs)) && Number(nowMs) > 0) {
+        // The quote payload has no source timestamp. Use host receipt time strictly
+        // for UI/risk preview freshness and make provenance explicit; execution gates
+        // must continue to reject this as an unverified source-time quote.
+        return {
+          quote: {
+            bid, ask, timestamp: Number(nowMs),
+            timestampSource: "host-receipt-only",
+            sourceTimestampVerified: false
+          },
+          diagnostic: {
+            reason: "accepted_receipt_time_only",
+            ageBucket: "host_receipt",
+            sourceTimestampVerified: false,
+            timestampFieldSource: stampField.source,
+            ...shape()
+          }
+        };
+      }
+      lastDiagnostic = { reason: "source_timestamp_missing", ...shape() };
+      continue;
+    }
+
+    const timestamp = Number(stampField.value);
     if (!Number.isFinite(timestamp) || timestamp <= 0) {
       lastDiagnostic = { reason: "invalid_source_timestamp", ...shape() };
       continue;
@@ -177,8 +203,8 @@ export function parseQuoteEventPayload(event, {
       continue;
     }
     return {
-      quote: { bid, ask, timestamp },
-      diagnostic: { reason: "accepted", ageBucket: ageMs < 1000 ? "under_1s" : "under_max_age", ...shape() }
+      quote: { bid, ask, timestamp, timestampSource: "broker", sourceTimestampVerified: true },
+      diagnostic: { reason: "accepted", ageBucket: ageMs < 1000 ? "under_1s" : "under_max_age", sourceTimestampVerified: true, ...shape() }
     };
   }
   return { quote: null, diagnostic: lastDiagnostic ?? {
