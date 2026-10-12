@@ -102,6 +102,9 @@ namespace cAlgo.Robots
         private DateTime _lastM1ClosedOpen = DateTime.MinValue;
         private DateTime _lastM5ClosedOpen = DateTime.MinValue;
 
+        private bool _entryConfigurationValid = true;
+        private bool _ladderConfigurationValid = true;
+
         private bool _setupActive;
         private TradeType _setupSide;
         private DateTime _setupCloseTime = DateTime.MinValue;
@@ -123,6 +126,20 @@ namespace cAlgo.Robots
         {
             try
             {
+                _entryConfigurationValid = MinPullbackBars <= MaxPullbackBars;
+                _ladderConfigurationValid =
+                    BreakEvenAtR <= LockAtR &&
+                    LockAtR <= TrailStartsAtR &&
+                    LockToR <= LockAtR &&
+                    TrailFloorR <= TrailStartsAtR &&
+                    TakeProfitR > TrailStartsAtR &&
+                    TakeProfitR > TrailFloorR;
+
+                if (!_entryConfigurationValid)
+                    Print("URM_LOCAL|CONFIG_ERROR|M1_PULLBACK_MIN_EXCEEDS_MAX|entries_blocked=true");
+                if (!_ladderConfigurationValid)
+                    Print("URM_LOCAL|CONFIG_ERROR|R_LADDER_THRESHOLDS_INCONSISTENT|automatic_SL_ladder_disabled=true");
+
                 if (!FinitePositive(Symbol.TickSize) || !FinitePositive(Symbol.PipSize))
                 {
                     Print("URM_LOCAL|FATAL|INVALID_TICK_OR_PIP_SIZE");
@@ -206,6 +223,12 @@ namespace cAlgo.Robots
                 return;
 
             _lastM5ClosedOpen = closedOpen;
+            if (!_entryConfigurationValid)
+            {
+                ResetSetup("INVALID_ENTRY_CONFIGURATION");
+                return;
+            }
+
             var closedAt = closedOpen.AddMinutes(5);
             var staleMinutes = (Server.TimeInUtc - closedAt).TotalMinutes;
             if (staleMinutes > 2.0 || staleMinutes < -0.25)
@@ -380,6 +403,12 @@ namespace cAlgo.Robots
 
         private void SubmitProtectedMarketOrder(TradeType side, double rawSwing)
         {
+            if (!_entryConfigurationValid)
+            {
+                Print("URM_LOCAL|ENTRY_BLOCK|INVALID_ENTRY_CONFIGURATION");
+                return;
+            }
+
             if (!EnableNewEntries)
             {
                 Print("URM_LOCAL|ENTRY_BLOCK|NEW_ENTRIES_DISABLED");
@@ -411,7 +440,8 @@ namespace cAlgo.Robots
                 return;
             }
 
-            if (CountUrmPositions() >= MaxUrmPositionsAccountWide || HasUrmPendingOrder())
+            if (HasLegacyUrmPositionOrPendingOrder() ||
+                CountUrmPositions() >= MaxUrmPositionsAccountWide || HasUrmPendingOrder())
             {
                 Print("URM_LOCAL|ENTRY_BLOCK|URM_EXPOSURE_OR_PENDING_ORDER_EXISTS");
                 return;
@@ -689,7 +719,7 @@ namespace cAlgo.Robots
                     continue;
                 }
 
-                if (!EnableRLadder)
+                if (!EnableRLadder || !_ladderConfigurationValid)
                     continue;
 
                 var targetStop = double.NaN;
@@ -838,6 +868,26 @@ namespace cAlgo.Robots
                     count++;
             }
             return count;
+        }
+
+        private bool HasLegacyUrmPositionOrPendingOrder()
+        {
+            for (var i = 0; i < Positions.Count; i++)
+            {
+                var p = Positions[i];
+                if (p != null && !string.IsNullOrEmpty(p.Label) &&
+                    p.Label.StartsWith("URM1|", StringComparison.Ordinal))
+                    return true;
+            }
+
+            foreach (var pending in PendingOrders)
+            {
+                if (pending != null && !string.IsNullOrEmpty(pending.Label) &&
+                    pending.Label.StartsWith("URM1|", StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
         }
 
         private bool HasUrmPendingOrder()
