@@ -81,6 +81,9 @@ namespace cAlgo.Robots
         [Parameter("M1 candle-flip trail enabled", Group = "05. Protection", DefaultValue = true)]
         public bool EnableCandleFlipTrail { get; set; }
 
+        [Parameter("Minimum SL advance (ticks)", Group = "05. Protection", DefaultValue = 2, MinValue = 1, MaxValue = 1000)]
+        public int MinimumStopAdvanceTicks { get; set; }
+
         [Parameter("BE trigger R", Group = "05. Protection", DefaultValue = 1.0, MinValue = 0.1, MaxValue = 10.0)]
         public double BreakEvenAtR { get; set; }
 
@@ -805,9 +808,10 @@ namespace cAlgo.Robots
 
                 targetStop = isBuy ? RoundDownToTick(targetStop) : RoundUpToTick(targetStop);
                 var currentStop = position.StopLoss.Value;
+                var minimumAdvance = Math.Max(1, MinimumStopAdvanceTicks) * Symbol.TickSize;
                 var improves = isBuy
-                    ? targetStop > currentStop + Symbol.TickSize * 0.5
-                    : targetStop < currentStop - Symbol.TickSize * 0.5;
+                    ? targetStop >= currentStop + minimumAdvance - Symbol.TickSize * 1e-6
+                    : targetStop <= currentStop - minimumAdvance + Symbol.TickSize * 1e-6;
 
                 if (!improves)
                     continue;
