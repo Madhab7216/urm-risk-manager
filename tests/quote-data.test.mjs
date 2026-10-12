@@ -13,7 +13,7 @@ const validCamel = {
 
 test("accepts documented cTrader camelCase ProtoQuoteEvent price units", () => {
   const result = parseQuoteEventPayload(validCamel, { expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000 });
-  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500 });
+  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500, timestampSource: "broker", sourceTimestampVerified: true });
   assert.equal(result.diagnostic.reason, "accepted");
 });
 
@@ -21,7 +21,7 @@ test("accepts PascalCase SDK wrapper fields without relaxing validation", () => 
   const result = parseQuoteEventPayload({
     PayloadType: 3, SymbolId: "42", Bid: "400000000", Ask: "400010000", Timestamp: String(NOW - 500)
   }, { expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000 });
-  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500 });
+  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500, timestampSource: "broker", sourceTimestampVerified: true });
   assert.equal(result.diagnostic.bidField, "Bid");
   assert.equal(result.diagnostic.timestampField, "Timestamp");
 });
@@ -99,7 +99,7 @@ test("accepts inherited non-enumerable timestamp fields while keeping source fre
   });
   assert.equal(Object.keys(event).includes("timestamp"), false);
   const result = parseQuoteEventPayload(event, { expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000 });
-  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500 });
+  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500, timestampSource: "broker", sourceTimestampVerified: true });
   assert.equal(result.diagnostic.reason, "accepted");
   assert.equal(result.diagnostic.timestampFieldSource, "inherited");
 });
@@ -109,6 +109,46 @@ test("accepts a non-enumerable own timestamp without requiring Object.keys to li
   Object.defineProperty(event, "timestamp", { value: NOW - 500, enumerable: false });
   assert.equal(Object.keys(event).includes("timestamp"), false);
   const result = parseQuoteEventPayload(event, { expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000 });
-  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500 });
+  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500, timestampSource: "broker", sourceTimestampVerified: true });
   assert.equal(result.diagnostic.timestampFieldSource, "own-nonenumerable");
+});
+
+
+test("accepts missing optional source timestamp as receipt-time preview only when explicitly enabled", () => {
+  const { timestamp, ...withoutTimestamp } = validCamel;
+  const result = parseQuoteEventPayload(withoutTimestamp, {
+    expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000, allowReceiptTimeFallback: true
+  });
+  assert.deepEqual(result.quote, {
+    bid: 4000, ask: 4000.1, timestamp: NOW,
+    timestampSource: "host-receipt-only", sourceTimestampVerified: false
+  });
+  assert.equal(result.diagnostic.reason, "accepted_receipt_time_only");
+  assert.equal(result.diagnostic.sourceTimestampVerified, false);
+});
+
+test("receipt-time fallback does not accept invalid prices", () => {
+  const { timestamp, ...withoutTimestamp } = validCamel;
+  const result = parseQuoteEventPayload({ ...withoutTimestamp, bid: 0 }, {
+    expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000, allowReceiptTimeFallback: true
+  });
+  assert.equal(result.quote, null);
+  assert.equal(result.diagnostic.reason, "invalid_bid_ask_values");
+});
+
+test("receipt-time fallback does not accept a stale source timestamp when one is present", () => {
+  const result = parseQuoteEventPayload({ ...validCamel, timestamp: NOW - 10_001 }, {
+    expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000, allowReceiptTimeFallback: true
+  });
+  assert.equal(result.quote, null);
+  assert.equal(result.diagnostic.reason, "source_timestamp_stale");
+});
+
+test("receipt-time fallback never accepts the wrong symbol", () => {
+  const { timestamp, ...withoutTimestamp } = validCamel;
+  const result = parseQuoteEventPayload({ ...withoutTimestamp, symbolId: 99 }, {
+    expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000, allowReceiptTimeFallback: true
+  });
+  assert.equal(result.quote, null);
+  assert.equal(result.diagnostic.reason, "symbol_id_mismatch");
 });
