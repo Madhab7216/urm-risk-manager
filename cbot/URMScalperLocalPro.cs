@@ -349,7 +349,16 @@ namespace cAlgo.Robots
                 : close < _pullbackLow - buffer;
 
             if (!breakConfirmed)
+            {
+                // A same-direction candle whose close did not clear the pullback range
+                // becomes part of the micro-structure. Include its wick so later bars
+                // cannot trigger against a range that ignored an intervening candle.
+                _pullbackHigh = Math.Max(_pullbackHigh, high);
+                _pullbackLow = Math.Min(_pullbackLow, low);
+                if (_obValid && high >= _obLow && low <= _obHigh)
+                    _pullbackTouchedOb = true;
                 return;
+            }
 
             if (_pullbackCount < MinPullbackBars)
             {
