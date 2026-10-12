@@ -386,7 +386,7 @@ namespace cAlgo.Robots
             TradeResult result;
             try
             {
-                result = ModifyPosition(position, targetSL, position.TakeProfit, false, StopTriggerMethod.Trade);
+                result = ModifyPosition(position, targetSL, position.TakeProfit, ProtectionType.Absolute, false, StopTriggerMethod.Trade);
             }
             catch (Exception ex)
             {
