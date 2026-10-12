@@ -229,7 +229,7 @@ test('receipt-time-only quotes are explicitly preview-only and cannot clear the 
   assert.match(html,/state\.quote\.sourceTimestampVerified===true/);
   assert.match(html,/broker timestamp verified/);
   assert.match(html,/receipt-time preview only; source timestamp missing/);
-  assert.match(html,/source timestamp is missing; it does not verify source price age; order execution remains blocked/);
+  assert.match(html,/source timestamp\. Local receipt time keeps the preview from stalling, but it does not verify source price age; order execution remains blocked/);
   assert.match(html,/Receipt-time quote preview only: broker-source timestamp is unavailable/);
   assert.match(html,/executionEnabled:\s*false/);
   assert.match(quoteData,/allowReceiptTimeFallback = false/);
