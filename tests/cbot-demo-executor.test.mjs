@@ -26,6 +26,9 @@ test('preflight requires a fresh platform tick and exact broker tick grid', () =
 
 test('fixed USD 10 risk sizing rounds down and rechecks estimated loss', () => {
   assert.match(source, /private const double TargetRiskUsd = 10\.0/);
+  assert.match(source, /BuildPositionLabel\(StructuralStopPrice, symbol\.Digits\)/);
+  assert.match(source, /URM1\|ID=/);
+  assert.match(source, /\|SL=/);
   assert.match(source, /AssetConverter\.Convert\(TargetRiskUsd, "USD", Account\.Asset\.Name\)/);
   assert.match(source, /VolumeForFixedRisk\(budgetInDeposit, stopDistancePips, RoundingMode\.Down\)/);
   assert.match(source, /NormalizeVolumeInUnits\(rawVolume, RoundingMode\.Down\)/);
