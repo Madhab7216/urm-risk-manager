@@ -18,7 +18,6 @@ namespace cAlgo.Robots
         private const double TargetRiskUsd = 10.0;
         private const double RiskToleranceUsd = 0.01;
         private const double TakeProfitR = 5.0;
-        private const string OrderLabel = "URM-DEMO-ONE-SHOT";
 
         [Parameter("Exact broker symbol", DefaultValue = "XAUUSD")]
         public string ExactSymbolName { get; set; }
@@ -293,12 +292,22 @@ namespace cAlgo.Robots
                 return;
             }
 
+            // Encode the exact structural SL into a persistent position label.
+            // The separate R-ladder manager refuses to manage positions with a different schema.
+            string orderLabel;
+            try { orderLabel = BuildPositionLabel(StructuralStopPrice, symbol.Digits); }
+            catch (Exception ex)
+            {
+                Block("POSITION_LABEL_BUILD_FAILED", "Could not encode the structural SL in the position label: " + ex.GetType().Name);
+                return;
+            }
+
             // Initial relative protection is attached in the same order request.
             // After fill, replace it with the exact structural SL and fill-anchored 5R TP.
             TradeResult orderResult;
             try
             {
-                orderResult = ExecuteMarketOrder(Direction, symbol.Name, volume, OrderLabel,
+                orderResult = ExecuteMarketOrder(Direction, symbol.Name, volume, orderLabel,
                     stopDistancePips, takeProfitDistancePips, "URM Demo one-shot fixed USD 10 risk",
                     false, StopTriggerMethod.Trade);
             }
@@ -379,10 +388,27 @@ namespace cAlgo.Robots
                 return;
             }
 
-            Print("URM_DEMO|ORDER_PROTECTED|positionId={0}|fill={1}|volumeUnits={2}|sl={3}|tp5R={4}|estimatedRiskUsd={5:F4}",
-                position.Id, F(fill), F(position.VolumeInUnits), F(StructuralStopPrice), F(absoluteTarget), filledRiskUsd);
+            Print("URM_DEMO|ORDER_PROTECTED|positionId={0}|fill={1}|volumeUnits={2}|sl={3}|tp5R={4}|estimatedRiskUsd={5:F4}|label={6}",
+                position.Id, F(fill), F(position.VolumeInUnits), F(StructuralStopPrice), F(absoluteTarget), filledRiskUsd, orderLabel);
             Print("URM_DEMO|NOTE|ONE_SHOT_ONLY|DEMO_ONLY|PRICE_RISK_USD_10_TARGET|COMMISSION_EXCLUDED|NO_AUTO_RETRY");
             Stop();
+        }
+
+        private static string BuildPositionLabel(double structuralStop, int digits)
+        {
+            if (!FinitePositive(structuralStop) || digits < 0 || digits > 10)
+                throw new ArgumentOutOfRangeException(nameof(structuralStop));
+
+            var clientOrderId = "URM-" + Guid.NewGuid().ToString("N").ToUpperInvariant();
+            var stopText = structuralStop.ToString("F" + digits, CultureInfo.InvariantCulture);
+            if (!double.TryParse(stopText, NumberStyles.Float, CultureInfo.InvariantCulture, out var encodedStop) ||
+                Math.Abs(encodedStop - structuralStop) > Math.Max(1e-10, Math.Pow(10, -digits) * 1e-6))
+                throw new InvalidOperationException("Structural SL cannot be represented at the broker's displayed precision.");
+
+            var label = "URM1|ID=" + clientOrderId + "|SL=" + stopText;
+            if (label.Length > 100)
+                throw new InvalidOperationException("Position label exceeds cTrader's 100-character limit.");
+            return label;
         }
 
         private void CloseAfterProtectionProblem(Position position, string reason)
