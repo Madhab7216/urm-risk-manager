@@ -52,7 +52,9 @@ test('freshness uses cTrader source timestamp as well as local receipt time',()=
   assert.match(quoteData,/const PRICE_SCALE = 100000/);
   assert.match(quoteData,/Number\(nowMs\) - timestamp/);
   assert.match(html,/quoteAgeMs=state\.quote \? now-Number\(state\.quote\.timestamp\)/);
-  assert.match(html,/first quote may be a market-closed snapshot/i);
+  assert.match(html,/Preview only: cTrader supplied Bid\/Ask without a source timestamp/i);
+  assert.match(html,/allowReceiptTimeFallback:true/);
+  assert.match(html,/sourceTimestampVerified!==true/);
 });
 
 test('account refresh cross-checks account identity before accepting currency/profile snapshot',()=>{
@@ -219,4 +221,15 @@ test('quote diagnostics show timestamp request and event fields in the short sum
   assert.ok(html.includes("subscribeToSpotTimestamp:true"));
   assert.ok(html.includes("enableStaleQuotesFiltering:false"));
   assert.match(html,/executionEnabled:\s*false/);
+});
+
+
+test('receipt-time-only quotes are explicitly preview-only and cannot clear the execution lock',()=>{
+  assert.match(html,/timestampSource==="broker"/);
+  assert.match(html,/receipt-time preview only; source timestamp missing/);
+  assert.match(html,/source timestamp is missing; it does not verify source price age; order execution remains blocked/);
+  assert.match(html,/Receipt-time quote preview only: broker-source timestamp is unavailable/);
+  assert.match(html,/executionEnabled:\s*false/);
+  assert.match(quoteData,/allowReceiptTimeFallback = false/);
+  assert.match(quoteData,/sourceTimestampVerified: false/);
 });
