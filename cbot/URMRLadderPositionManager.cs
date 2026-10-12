@@ -49,6 +49,13 @@ namespace cAlgo.Robots
 
         protected override void OnStart()
         {
+            if (Application.EnvironmentType != EnvironmentType.Desktop)
+            {
+                Print("URM_PM|BLOCK|DESKTOP_ENVIRONMENT_REQUIRED|Use local cTrader Desktop; Cloud/CLI storage durability is not supported.");
+                Stop();
+                return;
+            }
+
             if (Account.IsLive)
             {
                 Print("URM_PM|BLOCK|LIVE_ACCOUNT_NOT_ALLOWED|This manager is Demo-only.");
