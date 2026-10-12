@@ -209,7 +209,8 @@ test('quote event listeners attach before account and symbol requests',()=>{
 test('quote diagnostics distinguish subscription acknowledgement from first quote event',()=>{
   assert.match(html,/Acknowledged; timestamp requested; waiting for first quote event/);
   assert.match(html,/Subscription request pending/);
-  assert.match(html,/state\.sdkDiagnostics\.quoteSubscription='Quote event received'/);
+  assert.match(html,/state\.sdkDiagnostics\.quoteSubscription=q\.sourceTimestampVerified===true/);
+  assert.match(html,/Quote event received \(receipt-time fallback only\)/);
   assert.match(html,/Quote subscription failed:/);
   assert.match(html,/executionEnabled:\s*false/);
 });
@@ -225,7 +226,8 @@ test('quote diagnostics show timestamp request and event fields in the short sum
 
 
 test('receipt-time-only quotes are explicitly preview-only and cannot clear the execution lock',()=>{
-  assert.match(html,/timestampSource==="broker"/);
+  assert.match(html,/state\.quote\.sourceTimestampVerified===true/);
+  assert.match(html,/broker timestamp verified/);
   assert.match(html,/receipt-time preview only; source timestamp missing/);
   assert.match(html,/source timestamp is missing; it does not verify source price age; order execution remains blocked/);
   assert.match(html,/Receipt-time quote preview only: broker-source timestamp is unavailable/);
