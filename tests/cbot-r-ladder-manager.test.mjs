@@ -36,6 +36,9 @@ test('R ladder uses immutable structural SL and approved thresholds', () => {
   assert.match(manager, /private const double MinimumTrailingLockR = 2\.0/);
   assert.match(manager, /private const double TakeProfitR = 5\.0/);
   assert.match(manager, /var rDistance = Math\.Abs\(entry - structuralSL\)/);
+  assert.match(manager, /var existingStopR = isBuy/);
+  assert.match(manager, /inferredPeak = existingStopR \+ TrailingGapR/);
+  assert.match(manager, /var reconciledPeak = Math\.Max\(oldPeak, inferredPeak\)/);
 });
 
 test('manager persists high-water state before updates and refuses missing startup history', () => {
