@@ -5,14 +5,59 @@ const MAX_DEPTH = 12;
 const PRICE_SCALE = 100000;
 
 function field(object, ...aliases) {
-  if (!object || typeof object !== "object") return { found: false, key: null, value: undefined };
-  const exact = aliases.find(alias => Object.prototype.hasOwnProperty.call(object, alias));
-  if (exact !== undefined) return { found: true, key: exact, value: object[exact] };
+  if (!object || typeof object !== "object") {
+    return { found: false, key: null, value: undefined, source: "missing" };
+  }
+
+  // Prefer exact aliases, allowing non-enumerable own properties and
+  // inherited getters/data properties. Limit prototype traversal to avoid
+  // wandering through unexpected proxy/class chains.
+  for (const alias of aliases) {
+    try {
+      if (alias in object) {
+        const own = Object.prototype.hasOwnProperty.call(object, alias);
+        return {
+          found: true,
+          key: alias,
+          value: object[alias],
+          source: own
+            ? (Object.prototype.propertyIsEnumerable.call(object, alias) ? "own-enumerable" : "own-nonenumerable")
+            : "inherited"
+        };
+      }
+    } catch {
+      // A hostile or throwing getter is treated as unavailable; never trust it.
+      return { found: false, key: null, value: undefined, source: "unreadable" };
+    }
+  }
+
   const wanted = new Set(aliases.map(alias => String(alias).toLowerCase()));
-  const actual = Object.keys(object).find(key => wanted.has(key.toLowerCase()));
-  return actual === undefined
-    ? { found: false, key: null, value: undefined }
-    : { found: true, key: actual, value: object[actual] };
+  let current = object;
+  for (let depth = 0; current && depth <= 5; depth += 1) {
+    let names;
+    try { names = Object.getOwnPropertyNames(current); }
+    catch { return { found: false, key: null, value: undefined, source: "unreadable" }; }
+
+    const actual = names.find(key => wanted.has(key.toLowerCase()));
+    if (actual !== undefined) {
+      try {
+        const own = current === object;
+        return {
+          found: true,
+          key: actual,
+          value: object[actual],
+          source: own
+            ? (Object.prototype.propertyIsEnumerable.call(object, actual) ? "own-enumerable" : "own-nonenumerable")
+            : "inherited"
+        };
+      } catch {
+        return { found: false, key: null, value: undefined, source: "unreadable" };
+      }
+    }
+    try { current = Object.getPrototypeOf(current); }
+    catch { break; }
+  }
+  return { found: false, key: null, value: undefined, source: "missing" };
 }
 
 function collectObjects(root) {
@@ -51,6 +96,7 @@ function diagFor(object, reason, extras = {}) {
     bidField: bid.found ? bid.key : null,
     askField: ask.found ? ask.key : null,
     timestampField: stamp.found ? stamp.key : null,
+    timestampFieldSource: stamp.source,
     bidType: bid.found ? (bid.value === null ? "null" : typeof bid.value) : "missing",
     askType: ask.found ? (ask.value === null ? "null" : typeof ask.value) : "missing",
     timestampType: stamp.found ? (stamp.value === null ? "null" : typeof stamp.value) : "missing",
@@ -95,6 +141,7 @@ export function parseQuoteEventPayload(event, {
       bidField: bidField.found ? bidField.key : null,
       askField: askField.found ? askField.key : null,
       timestampField: stampField.found ? stampField.key : null,
+      timestampFieldSource: stampField.source,
       bidType: bidField.found ? (bidField.value === null ? "null" : typeof bidField.value) : "missing",
       askType: askField.found ? (askField.value === null ? "null" : typeof askField.value) : "missing",
       timestampType: stampField.found ? (stampField.value === null ? "null" : typeof stampField.value) : "missing"
