@@ -27,7 +27,7 @@ The private candle-state output and internal rules of TradingView's LuxAlgo and 
 4. First start with **Enable new entries = false**. Read Logs and verify the `URM_LOCAL|STARTED` message, account type, and signal-rule summary.
 5. On a clean **Demo** account, enable `Enable new entries` only after checking parameters. Keep `Allow Demo entries = true` and `Allow Live entries (explicit) = false`. Use a broker's exact supported symbol and verify the risk calculation and attached SL/TP after the first trade.
 6. Do not enable Live entries until Demo execution, stop/target readback, restart recovery, and the +1R/+2R/+3R ladder have been manually verified. On Live, both `Enable new entries` and `Allow Live entries (explicit)` must be true. These are separate switches; default Live entry execution is off.
-7. Use one cBot instance per account/symbol. The bot supports only its own `URMSTRAT|V1|` labelled positions; it will not manage unrelated manual positions. It blocks fresh entries on non-Hedged accounts when `Require Hedged account` remains true.
+7. Use one cBot instance per account/symbol. The bot supports only its own `URMSTRAT|V1|` labelled positions; it will not manage unrelated manual positions. It blocks fresh entries on non-Hedged accounts when `Require Hedged account` remains true. By default, `Block entries with foreign exposure = true` also blocks new entries while any unrelated open position or pending order exists in the account. For safest testing, use a clean, dedicated Demo account.
 
 ## Default parameters
 
@@ -36,6 +36,7 @@ The private candle-state output and internal rules of TradingView's LuxAlgo and 
 | New entries | Off |
 | Demo entries | Allowed |
 | Live entries | Off |
+| Block entries with foreign account exposure | Yes |
 | Estimated price risk | USD 10 |
 | TP | 5R |
 | M5 swing lookback | 12 bars |
