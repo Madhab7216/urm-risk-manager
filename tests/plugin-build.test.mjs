@@ -214,7 +214,7 @@ test('quote diagnostics distinguish subscription acknowledgement from first quot
 
 
 test('quote diagnostics show timestamp request and event fields in the short summary',()=>{
-  assert.ok(html.includes('timestamp field: ${timestampField}; keys: ${eventKeys || \'not available\'}'));
+  assert.ok(html.includes('timestamp field: ${timestampField}${timestampSource}; keys: ${eventKeys || \'not available\'}'));
   assert.ok(html.includes("Acknowledged; timestamp requested; waiting for first quote event"));
   assert.ok(html.includes("subscribeToSpotTimestamp:true"));
   assert.ok(html.includes("enableStaleQuotesFiltering:false"));
