@@ -24,7 +24,6 @@ namespace cAlgo.Robots
         private const double TrailAtR = 3.0;
         private const double TrailGapR = 1.0;
         private const double TrailFloorR = 2.0;
-        private const int MaxTickAgeSeconds = 5;
 
         private readonly HashSet<int> _haltedPositions = new HashSet<int>();
         private bool _submittingOrder;
@@ -364,6 +363,12 @@ namespace cAlgo.Robots
                 return;
             }
 
+            if (Account.Asset == null || string.IsNullOrWhiteSpace(Account.Asset.Name))
+            {
+                Block("ACCOUNT_CURRENCY_UNKNOWN", "Account deposit currency is unavailable.");
+                return;
+            }
+
             double riskDeposit;
             try { riskDeposit = AssetConverter.Convert(RiskUsd, "USD", Account.Asset.Name); }
             catch (Exception ex) { Block("USD_CONVERSION_FAILED_" + ex.GetType().Name, "Cannot convert USD 10 to deposit currency."); return; }
@@ -384,6 +389,12 @@ namespace cAlgo.Robots
             double rawVolume;
             try { rawVolume = targetSymbol.VolumeForFixedRisk(riskDeposit, stopPips, RoundingMode.Down); }
             catch (Exception ex) { Block("VOLUME_CALCULATION_FAILED_" + ex.GetType().Name, "Fixed-risk sizing failed."); return; }
+
+            if (!FinitePositive(rawVolume))
+            {
+                Block("RAW_VOLUME_INVALID", "Fixed-risk sizing returned a non-positive or non-finite volume.");
+                return;
+            }
 
             var volume = targetSymbol.NormalizeVolumeInUnits(rawVolume, RoundingMode.Down);
             if (!FinitePositive(volume) || volume < targetSymbol.VolumeInUnitsMin ||
@@ -416,7 +427,14 @@ namespace cAlgo.Robots
                 return;
             }
 
-            var label = BuildLabel(StructuralStopPrice, targetSymbol.Digits);
+            string label;
+            try { label = BuildLabel(StructuralStopPrice, targetSymbol.Digits); }
+            catch (Exception ex)
+            {
+                Block("POSITION_LABEL_BUILD_FAILED_" + ex.GetType().Name, "Could not encode the structural SL.");
+                return;
+            }
+
             Print("URM_CLOUD|PREFLIGHT_PASS|symbol={0}|side={1}|volumeUnits={2}|estimatedRiskUsd={3:F4}|SL={4}|estimated5R={5}",
                 targetSymbol.Name, Direction, volume, estimateUsd,
                 StructuralStopPrice.ToString("R", CultureInfo.InvariantCulture),
