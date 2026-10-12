@@ -414,8 +414,7 @@ namespace cAlgo.Robots
             }
 
             if (RequireHedgedAccount &&
-                (Account.AccountType == null ||
-                 Account.AccountType.ToString().IndexOf("Hedg", StringComparison.OrdinalIgnoreCase) < 0))
+                Account.AccountType.ToString().IndexOf("Hedg", StringComparison.OrdinalIgnoreCase) < 0)
             {
                 Print("URM_LOCAL|ENTRY_BLOCK|HEDGED_ACCOUNT_REQUIRED|accountType={0}", Account.AccountType);
                 return;
