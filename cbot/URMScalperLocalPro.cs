@@ -145,8 +145,8 @@ namespace cAlgo.Robots
                 _lastM1ClosedOpen = _m1.OpenTimes[_m1.Count - 2];
                 _lastM5ClosedOpen = _m5.OpenTimes[_m5.Count - 2];
 
-                Print("URM_LOCAL|STARTED|symbol={0}|account={1}|live={2}|entriesEnabled={3}|liveEntriesAllowed={4}|riskUSD={5:F2}|TP_R={6:F2}|m5Lookback={7}|OBRequired={8}",
-                    Symbol.Name, Account.Number, Account.IsLive, EnableNewEntries, AllowLiveEntries,
+                Print("URM_LOCAL|STARTED|symbol={0}|live={1}|entriesEnabled={2}|liveEntriesAllowed={3}|riskUSD={4:F2}|TP_R={5:F2}|m5Lookback={6}|OBRequired={7}",
+                    Symbol.Name, Account.IsLive, EnableNewEntries, AllowLiveEntries,
                     FixedRiskUsd, TakeProfitR, M5SwingLookback, RequireOrderBlockRetest);
                 Print("URM_LOCAL|RULES|M5 close beyond prior swing; M1 opposite-color pullback then close-break; SL=pullback extreme+buffer; BE@{0}R; lock +{1}R at {2}R; trail@{3}R gap={4}R floor={5}R; candle-color flip is a native proxy, not Sideways Alarm output.",
                     BreakEvenAtR, LockToR, LockAtR, TrailStartsAtR, TrailGapR, TrailFloorR);
