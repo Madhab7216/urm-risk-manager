@@ -31,6 +31,8 @@ test('USD risk sizing is cross-checked against broker volume limits and margin',
   assert.match(source, /NormalizeVolumeInUnits\(rawVolume, RoundingMode\.Down\)/);
   assert.match(source, /AmountRisked/);
   assert.match(source, /GetEstimatedMargin/);
+  assert.match(source, /BlockEntriesWithForeignExposure/);
+  assert.match(source, /FOREIGN_ACCOUNT_EXPOSURE_EXISTS/);
   assert.match(source, /ESTIMATED_RISK_OVER_BUDGET/);
 });
 
