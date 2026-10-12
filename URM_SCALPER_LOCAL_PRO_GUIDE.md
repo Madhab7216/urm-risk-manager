@@ -19,14 +19,35 @@
 
 The private candle-state output and internal rules of TradingView's LuxAlgo and Sideways Alarm indicators are not exposed to this standalone cTrader cBot. This version implements the above explicit price-action/candle-colour proxy from the user's written strategy. It does **not** claim a byte-for-byte reproduction of either third-party indicator. Exact matching would require an authorized cTrader-native port or access to the original indicator's logic.
 
+## Trade Ticket tabs in cTrader Desktop
+
+When the cBot starts locally, it adds three chart tabs: **Trade Ticket**, **Positions / Trail**, and **Strategy**.
+
+### Trade Ticket
+
+1. Enter the exact structural Stop Loss price from the planned invalidation point. The ticket rejects an SL off the broker's TickSize grid rather than silently rounding it.
+2. Enter the USD risk budget (default USD 10) and choose **Preview BUY** or **Preview SELL**. This uses the cTrader Algo `VolumeForFixedRisk`, `NormalizeVolumeInUnits`, `AmountRisked`, `AssetConverter` and margin calculation. It displays estimated entry, TP, lots, units and USD price-risk. Preview sends no order.
+3. Check the preview against the chart, spread, account and broker constraints. Tick **Confirm this ONE order** and click **PLACE BUY** or **PLACE SELL**. Confirmation is consumed immediately and never triggers an automatic retry.
+4. The order method repeats the quote/risk/volume/margin/exposure checks, submits initial relative SL/TP, then sets the fill-anchored structural SL and 5R TP and confirms their server read-back. A critical protection or close-failure log requires immediate manual inspection of Trade Watch.
+
+For Demo, `Allow Demo entries = true` is the default. The order still requires the one-shot panel confirmation. For Live, the cBot parameter `Allow Live entries (explicit) = true` and the Trade Ticket checkbox **I explicitly allow this panel to send LIVE orders** must both be enabled. The separate automated strategy toggle is off by default unless started with `Enable new entries = true`; Live automated orders also require the panel Live confirmation. Do not enable Live before completing all Demo checks.
+
+### Positions / Trail
+
+This tab displays URM positions on the current symbol and includes runtime controls for the R-ladder and native M1 candle-colour trail proxy. Management is server-side SL modification requested via cTrader Algo and confirmed by reading the position back. The trail button changes the manager runtime state; it does not remove the server SL/TP already attached to a position.
+
+### Strategy
+
+This tab shows whether M5/M1 signal generation has an active setup, whether an OB was found, the pullback count and whether automated entries are armed. The strategy entry toggle is independent of manual Trade Ticket orders.
+
 ## Run locally in cTrader Desktop
 
 1. In cTrader Desktop, stop any older URM cBots that may submit trades or modify stops, especially `URMRLadderPositionManager`, `URMDemoOneShotExecutor`, and `URMCloudOneShotLadder`. Do not let two managers control the same position.
 2. In **Algo → cBots**, create/import `URMScalperLocalPro`. If a successful GitHub Actions build artifact is available, download the `.algo` from that workflow's run under **Artifacts** and import it. Otherwise create a C# cBot, paste the complete source, save, and Build.
-3. Attach exactly one instance to the intended broker symbol. The bot fetches M1 and M5 data internally, so signals are not restricted to the chart timeframe. Ensure the symbol shown in cTrader is the one you intend to trade.
+3. Attach exactly one instance to the intended broker symbol. The cBot opens the on-chart tabs **Trade Ticket**, **Positions / Trail**, and **Strategy**. It fetches M1 and M5 data internally, so signals are not restricted to the chart timeframe. Ensure the symbol shown in cTrader is the one you intend to trade.
 4. First start with **Enable new entries = false**. Read Logs and verify the `URM_LOCAL|STARTED` message, account type, and signal-rule summary.
-5. On a clean **Demo** account, enable `Enable new entries` only after checking parameters. Keep `Allow Demo entries = true` and `Allow Live entries (explicit) = false`. Use a broker's exact supported symbol and verify the risk calculation and attached SL/TP after the first trade.
-6. Do not enable Live entries until Demo execution, stop/target readback, restart recovery, and the +1R/+2R/+3R ladder have been manually verified. On Live, both `Enable new entries` and `Allow Live entries (explicit)` must be true. These are separate switches; default Live entry execution is off.
+5. On a clean **Demo** account, keep `Allow Demo entries = true` and `Allow Live entries (explicit) = false`. In the **Trade Ticket** tab, enter the structural SL and risk amount, preview the size, then tick the one-shot confirmation checkbox and place the Demo order. Enable automated `Enable new entries` using the Strategy tab only if you want M5/M1 auto entries. Verify the attached SL/TP after the first trade.
+6. Do not enable Live entries until Demo execution, stop/target readback, restart recovery, and the +1R/+2R/+3R ladder have been manually verified. On Live, `Allow Live entries (explicit)` in parameters plus the Live confirmation checkbox in the Trade Ticket tab must both be enabled. Automated strategy entries additionally require the Strategy-tab toggle. Default Live entry permission is off.
 7. Use one cBot instance per account/symbol. The bot supports only its own `URMSTRAT|V1|` labelled positions; it will not manage unrelated manual positions. It blocks fresh entries on non-Hedged accounts when `Require Hedged account` remains true. By default, `Block entries with foreign exposure = true` also blocks new entries while any unrelated open position or pending order exists in the account. For safest testing, use a clean, dedicated Demo account.
 
 ## Default parameters
