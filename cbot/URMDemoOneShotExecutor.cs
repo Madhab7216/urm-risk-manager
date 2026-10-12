@@ -363,7 +363,7 @@ namespace cAlgo.Robots
             try
             {
                 protectionResult = ModifyPosition(position, StructuralStopPrice, absoluteTarget,
-                    false, StopTriggerMethod.Trade);
+                    ProtectionType.Absolute, false, StopTriggerMethod.Trade);
             }
             catch (Exception ex)
             {
