@@ -23,6 +23,7 @@ test('strategy uses closed M5 breakout plus M1 pullback and an explicit OB retes
   assert.match(source, /M1_CONFIRM/);
   assert.doesNotMatch(source, /var structureBroken/);
   assert.match(source, /if \(_pullbackCount >= MaxPullbackBars\)/);
+  assert.match(source, /Include its wick so later bars/);
 });
 
 test('USD risk sizing is cross-checked against broker volume limits and margin', () => {
