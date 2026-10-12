@@ -45,7 +45,7 @@ test('manager persists high-water state before updates and refuses missing start
   assert.match(manager, /does not match this exact position ID, symbol, side, entry and structural SL/);
   assert.match(manager, /PEAK_STATE_MISSING/);
   assert.match(manager, /POSITION_OPENED/);
-  assert.match(manager, /PEAK_STATE_CORRUPT/);
+  assert.match(manager, /PEAK_STATE_INVALID_OR_MISMATCHED/);
 });
 
 test('management is monotonic, uses fresh ticks and never changes TP or closes positions', () => {
@@ -65,7 +65,7 @@ test('manager preserves TP and pauses at 5R or ambiguous protection', () => {
   assert.match(manager, /SERVER_SL_MISSING/);
   assert.match(manager, /SL_MODIFY_REJECTED/);
   assert.match(manager, /SL_SERVER_READBACK_MISMATCH/);
-  assert.match(manager, /does not close it/);
+  assert.match(manager, /will not close it/);
 });
 
 test('guide requires local Demo, starts manager before executor and documents C# compile limitation', () => {
