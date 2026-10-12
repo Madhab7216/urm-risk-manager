@@ -1,0 +1,40 @@
+name: URM Scalper Local Pro Build
+
+on:
+  push:
+    paths:
+      - 'cbot/URMScalperLocalPro.cs'
+      - 'cbot/URMScalperLocalPro.csproj'
+      - '.github/workflows/urm-local-pro-build.yml'
+  pull_request:
+    paths:
+      - 'cbot/URMScalperLocalPro.cs'
+      - 'cbot/URMScalperLocalPro.csproj'
+      - '.github/workflows/urm-local-pro-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+      - name: Build against cTrader Automate API
+        run: dotnet build cbot/URMScalperLocalPro.csproj --configuration Release --nologo
+      - name: Upload cBot build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: URMScalperLocalPro-build
+          path: |
+            cbot/bin/Release/net6.0/*.algo
+            cbot/bin/Release/net6.0/*.dll
+          if-no-files-found: warn
+          retention-days: 14
