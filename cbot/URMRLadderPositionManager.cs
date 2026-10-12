@@ -282,12 +282,37 @@ namespace cAlgo.Robots
                 return;
             }
 
+            var confirmedStop = position.StopLoss.Value;
+            if (!IsOnTickGrid(confirmedStop, tickSize))
+            {
+                _manualIntervention.Add(position.Id);
+                LogState(position, "SERVER_SL_OFF_TICK_GRID", "CRITICAL",
+                    "The server-reported SL is not on the current broker TickSize grid. Management paused.");
+                return;
+            }
+
+            // A server-confirmed profit-lock can recover a conservative lower bound
+            // for peak-R if the last high-water write was lost during abrupt shutdown.
+            // It cannot prove the full excursion; it only prevents the manager from
+            // calculating a less protective trail than the existing server SL implies.
+            var existingStopR = isBuy
+                ? (confirmedStop - entry) / rDistance
+                : (entry - confirmedStop) / rDistance;
+            var inferredPeak = 0.0;
+            if (existingStopR >= MinimumTrailingLockR)
+                inferredPeak = existingStopR + TrailingGapR;
+            else if (existingStopR >= LockToR)
+                inferredPeak = LockAtR;
+            else if (existingStopR >= -1e-8)
+                inferredPeak = BreakEvenAtR;
+
             var oldPeak = _peakRByPosition[position.Id];
-            var peak = Math.Max(oldPeak, currentR);
+            var reconciledPeak = Math.Max(oldPeak, inferredPeak);
+            var peak = Math.Max(reconciledPeak, currentR);
             if (peak > oldPeak + 1e-10)
             {
-                // Persist each new high-water before any stop action. If storage fails,
-                // do not trail using an in-memory-only peak that would be lost on restart.
+                // A higher peak is staged locally; immediately before any SL change
+                // the exact state is flushed to disk (write-ahead durability guard).
                 if (!WritePeakState(position, clientOrderId, structuralSL, peak, false))
                 {
                     _stateInvalid.Add(position.Id);
@@ -296,15 +321,6 @@ namespace cAlgo.Robots
                     return;
                 }
                 _peakRByPosition[position.Id] = peak;
-            }
-
-            var confirmedStop = position.StopLoss.Value;
-            if (!IsOnTickGrid(confirmedStop, tickSize))
-            {
-                _manualIntervention.Add(position.Id);
-                LogState(position, "SERVER_SL_OFF_TICK_GRID", "CRITICAL",
-                    "The server-reported SL is not on the current broker TickSize grid. Management paused.");
-                return;
             }
 
             if (peak >= TakeProfitR || currentR >= TakeProfitR)
