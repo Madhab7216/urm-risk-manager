@@ -82,3 +82,33 @@ test("diagnostics expose field names/types but not raw prices or account data", 
   assert.equal(encoded.includes(String(validCamel.ask)), false);
   assert.equal(encoded.includes("account"), false);
 });
+
+
+test("accepts inherited non-enumerable timestamp fields while keeping source freshness checks", () => {
+  const proto = {};
+  Object.defineProperty(proto, "timestamp", {
+    get() { return NOW - 500; },
+    enumerable: false,
+    configurable: true
+  });
+  const event = Object.assign(Object.create(proto), {
+    payloadType: 3,
+    symbolId: 42,
+    bid: 400_000_000,
+    ask: 400_010_000
+  });
+  assert.equal(Object.keys(event).includes("timestamp"), false);
+  const result = parseQuoteEventPayload(event, { expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000 });
+  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500 });
+  assert.equal(result.diagnostic.reason, "accepted");
+  assert.equal(result.diagnostic.timestampFieldSource, "inherited");
+});
+
+test("accepts a non-enumerable own timestamp without requiring Object.keys to list it", () => {
+  const event = { payloadType: 3, symbolId: 42, bid: 400_000_000, ask: 400_010_000 };
+  Object.defineProperty(event, "timestamp", { value: NOW - 500, enumerable: false });
+  assert.equal(Object.keys(event).includes("timestamp"), false);
+  const result = parseQuoteEventPayload(event, { expectedSymbolId: 42, nowMs: NOW, maxAgeMs: 10_000 });
+  assert.deepEqual(result.quote, { bid: 4000, ask: 4000.1, timestamp: NOW - 500 });
+  assert.equal(result.diagnostic.timestampFieldSource, "own-nonenumerable");
+});
