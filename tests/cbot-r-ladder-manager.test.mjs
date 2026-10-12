@@ -40,7 +40,9 @@ test('R ladder uses immutable structural SL and approved thresholds', () => {
 test('manager persists high-water state before updates and refuses missing startup history', () => {
   assert.match(manager, /LocalStorage\.SetString/);
   assert.match(manager, /LocalStorage\.Flush\(LocalStorageScope\.Type\)/);
-  assert.match(manager, /PersistPeakNow\(position\.Id, peak\)/);
+  assert.match(manager, /PersistPeakNow\(position, clientOrderId, structuralSL, peak\)/);
+  assert.match(manager, /TryParsePeakRecord\(stored, position, clientOrderId, structuralSL, tickSize/);
+  assert.match(manager, /does not match this exact position ID, symbol, side, entry and structural SL/);
   assert.match(manager, /PEAK_STATE_MISSING/);
   assert.match(manager, /POSITION_OPENED/);
   assert.match(manager, /PEAK_STATE_CORRUPT/);
