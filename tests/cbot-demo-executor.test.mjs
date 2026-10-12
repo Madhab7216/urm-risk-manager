@@ -52,6 +52,6 @@ test('executor blocks pre-existing exposure and never auto-retries', () => {
 test('guide explains native cBot is not the WebView plugin and C# compile remains required', () => {
   assert.match(guide, /not connected to the WebView plugin/i);
   assert.match(guide, /Confirm one-shot DEMO order = false/);
-  assert.match(guide, /has not been compiled in your local cTrader Automate version/i);
+  assert.match(guide, /has \\*\\*not\\*\\* been compiled in your local cTrader Automate version/i);
   assert.match(guide, /Do not use it on a Live account/i);
 });
