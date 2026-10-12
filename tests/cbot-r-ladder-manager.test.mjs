@@ -11,6 +11,7 @@ const observer = readFileSync(resolve(root, 'cbot/URMPositionObserver.cs'), 'utf
 const guide = readFileSync(resolve(root, 'URM_R_LADDER_MANAGER_GUIDE.md'), 'utf8');
 
 test('manager is Demo-only and refuses unsupported account model', () => {
+  assert.match(manager, /Application\.EnvironmentType != EnvironmentType\.Desktop/);
   assert.match(manager, /if\s*\(Account\.IsLive\)/);
   assert.match(manager, /LIVE_ACCOUNT_NOT_ALLOWED/);
   assert.match(manager, /ACCOUNT_MODEL_UNSUPPORTED/);
