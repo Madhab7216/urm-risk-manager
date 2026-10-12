@@ -1,6 +1,6 @@
 # URM cTrader Advanced Risk Manager — Stage G v1.0
 
-**Web Plugin status: diagnostic preview only; plugin order submission remains locked.** A separate native cTrader Automate one-shot executor has been added for controlled Demo testing; it is opt-in (confirmation defaults to false), is not wired to the Web Plugin, and has not been compiled in the installed cTrader environment. The calibration probe and copied-report validator remain read-only and cannot authorize execution.
+**Web Plugin status: diagnostic preview only; plugin order submission remains locked.** Separate native cTrader Automate prototypes now exist for one-shot Demo execution and the URM R-ladder position manager. The executor is opt-in (confirmation defaults to false); both cBots are not wired to the Web Plugin and have not been compiled in the installed cTrader environment.
 
 ## Approved risk policy
 
@@ -23,6 +23,7 @@
 5. **Tests** for report parsing and cBot static safety properties, including off-tick-grid stop/quote guards.
 6. **Execution authority decision** explains why the Web Plugin and cBot are not assumed to share state or a control channel.
 7. **Native Demo execution slice** (`cbot/URMDemoOneShotExecutor.cs`) adds one explicitly confirmed Demo market order with a fresh platform tick, authoritative Algo TickSize, fixed-USD-10 estimated price-risk sizing, attached initial SL/TP, and post-fill structural-SL / 5R protection verification. Its default parameter sends no order.
+8. **Native R-ladder manager** (`cbot/URMRLadderPositionManager.cs`) manages only URM1-labelled positions on its chart symbol; applies BE at +1R, +1.7R lock at +2R, and a one-R favourable trailing gap with a +2R floor from +3R; persists peak-R history, advances SL only, checks server read-back and leaves TP untouched. It must be started before the one-shot executor.
 
 ## Project layout
 
@@ -37,6 +38,8 @@
 - `cbot/URMCalibrationProbe.cs` — Demo-only, read-only platform calibration and account inventory report.
 - `cbot/URMDemoOneShotExecutor.cs` — native one-shot Demo execution prototype; explicit confirmation defaults to false and broker Demo compilation/testing is still required.
 - `URM_DEMO_ONE_SHOT_EXECUTOR_GUIDE.md` — step-by-step cBot compilation, preflight and one-shot Demo-use guide.
+- `cbot/URMRLadderPositionManager.cs` — Demo-only active R-ladder manager; requires peak-R state durability and actual broker validation.
+- `URM_R_LADDER_MANAGER_GUIDE.md` — setup order, local storage requirement and manual-reconciliation rules.
 - `cbot/URMPositionObserver.cs` — separate read-only position observer prototype; compile status unverified.
 - `tools/validate-calibration-report.mjs` — local validator for copied report text; diagnostic only.
 - `tests/*.test.mjs` — local automated tests.
@@ -86,4 +89,4 @@ The suite includes report-parser tests, static safety checks for both cBot sourc
 - No partial-fill, server-confirmed SL/TP, local/Cloud restart, account-switch, or live host integration test has been performed.
 - The `maxExposure` aggregate still requires a defined authoritative exposure calculation and review of positions plus pending orders across the relevant account model.
 
-The Web Plugin remains **preview-only and hard-locked**. The separate one-shot cBot is an opt-in Demo test path, not a production-ready or full URM R-ladder manager. Keep the Plugin locked and do not use the cBot on a Live account. Do not consider either component fully validated until C# compilation, broker-host Demo execution, protection read-back, failure recovery, and all relevant release gates have been independently completed.
+The Web Plugin remains **preview-only and hard-locked**. The separate one-shot executor and R-ladder manager are opt-in Demo prototypes, not production-ready. Run exactly one manager instance per account/symbol on local cTrader and start it before the one-shot executor. Do not use either cBot on Live or Cloud. Do not consider them validated until local C# compilation, broker-host Demo execution, SL/TP read-back, restart recovery and every relevant release gate have passed.
