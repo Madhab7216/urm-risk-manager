@@ -39,6 +39,7 @@ namespace cAlgo.Robots
         private readonly HashSet<int> _stateInvalid = new HashSet<int>();
         private readonly HashSet<int> _manualIntervention = new HashSet<int>();
         private readonly HashSet<int> _modifyInFlight = new HashSet<int>();
+        private readonly HashSet<int> _dirtyPeakState = new HashSet<int>();
         private readonly HashSet<int> _foreignLabelLogged = new HashSet<int>();
 
         private long _startupAccountNumber;
@@ -101,16 +102,15 @@ namespace cAlgo.Robots
 
         protected override void OnTimer()
         {
-            EnsureAccountContext("TIMER");
+            if (!EnsureAccountContext("TIMER"))
+                return;
+            FlushPendingPeakState("TIMER");
         }
 
         protected override void OnStop()
         {
             if (EnsureAccountContext("STOP"))
-            {
-                try { LocalStorage.Flush(LocalStorageScope.Type); }
-                catch (Exception ex) { Print("URM_PM|WARNING|STORAGE_FLUSH_FAILED|{0}", ex.GetType().Name); }
-            }
+                FlushPendingPeakState("STOP");
 
             Timer.Stop();
             Positions.Opened -= OnPositionOpened;
@@ -160,6 +160,7 @@ namespace cAlgo.Robots
             _lastLogSignature.Remove(position.Id);
             _lastLogAt.Remove(position.Id);
             _foreignLabelLogged.Remove(position.Id);
+            _dirtyPeakState.Remove(position.Id);
         }
 
         private void Observe(Position position, string source, double suppliedBid = double.NaN, double suppliedAsk = double.NaN)
@@ -280,11 +281,11 @@ namespace cAlgo.Robots
             {
                 // Persist each new high-water before any stop action. If storage fails,
                 // do not trail using an in-memory-only peak that would be lost on restart.
-                if (!PersistPeakNow(position, clientOrderId, structuralSL, peak))
+                if (!WritePeakState(position, clientOrderId, structuralSL, peak, false))
                 {
                     _stateInvalid.Add(position.Id);
                     LogState(position, "PEAK_STATE_WRITE_FAILED", "CRITICAL",
-                        "High-water R could not be flushed to local storage. Stop changes are disabled for this position.");
+                        "High-water R could not be written to local storage. Stop changes are disabled for this position.");
                     return;
                 }
                 _peakRByPosition[position.Id] = peak;
@@ -365,6 +366,17 @@ namespace cAlgo.Robots
                     string.Format(CultureInfo.InvariantCulture,
                         "Requested SL {0} is on/through the executable market or off TickSize grid. No modification sent.",
                         targetSL));
+                return;
+            }
+
+            // Persist the exact high-water state to disk before any server SL
+            // modification. This is the durable write-ahead guard for the R ladder.
+            if (!WritePeakState(position, clientOrderId, structuralSL, peak, true))
+            {
+                _stateInvalid.Add(position.Id);
+                _manualIntervention.Add(position.Id);
+                LogState(position, "PEAK_STATE_DURABILITY_FAILED", "CRITICAL",
+                    "Cannot flush the exact high-water state before SL modification. No broker modification sent.");
                 return;
             }
 
@@ -454,7 +466,7 @@ namespace cAlgo.Robots
             {
                 _peakRByPosition[id] = 0.0;
                 _loaded.Add(id);
-                if (!PersistPeakNow(position, clientOrderId, structuralSL, 0.0))
+                if (!WritePeakState(position, clientOrderId, structuralSL, 0.0, true))
                 {
                     _loaded.Remove(id);
                     _stateInvalid.Add(id);
@@ -471,7 +483,7 @@ namespace cAlgo.Robots
             return false;
         }
 
-        private bool PersistPeakNow(Position position, string clientOrderId, double structuralSL, double peak)
+        private bool WritePeakState(Position position, string clientOrderId, double structuralSL, double peak, bool flushToDisk)
         {
             if (position == null || !FiniteNonNegative(peak) || !EnsureAccountContext("PEAK_PERSIST"))
                 return false;
@@ -484,17 +496,49 @@ namespace cAlgo.Robots
                     "|ENTRY=" + position.EntryPrice.ToString("R", CultureInfo.InvariantCulture) +
                     "|SL=" + structuralSL.ToString("R", CultureInfo.InvariantCulture) +
                     "|PEAK=" + peak.ToString("R", CultureInfo.InvariantCulture);
-                if (value.Contains("|SYM=|") || position.SymbolName.Contains("|"))
+                if (position.SymbolName.Contains("|"))
                     return false;
 
                 LocalStorage.SetString(PeakStorageKey(position.Id), value, LocalStorageScope.Type);
-                LocalStorage.Flush(LocalStorageScope.Type);
+                if (flushToDisk)
+                {
+                    LocalStorage.Flush(LocalStorageScope.Type);
+                    _dirtyPeakState.Remove(position.Id);
+                }
+                else
+                {
+                    _dirtyPeakState.Add(position.Id);
+                }
                 return true;
             }
             catch (Exception ex)
             {
                 Print("URM_PM|CRITICAL|PEAK_STATE_PERSIST_EXCEPTION|positionId={0}|error={1}|No SL change will be sent.", position.Id, ex.GetType().Name);
                 return false;
+            }
+        }
+
+        private void FlushPendingPeakState(string source)
+        {
+            if (_dirtyPeakState.Count == 0 || !EnsureAccountContext(source))
+                return;
+
+            var dirty = new List<int>(_dirtyPeakState);
+            try
+            {
+                LocalStorage.Flush(LocalStorageScope.Type);
+                _dirtyPeakState.Clear();
+            }
+            catch (Exception ex)
+            {
+                foreach (var id in dirty)
+                {
+                    _stateInvalid.Add(id);
+                    _manualIntervention.Add(id);
+                    Print("URM_PM|CRITICAL|PEAK_STATE_FLUSH_FAILED|positionId={0}|source={1}|error={2}|Management paused; inspect Trade Watch and restart only after manual reconciliation.",
+                        id, source, ex.GetType().Name);
+                }
+                _dirtyPeakState.Clear();
             }
         }
 
@@ -532,6 +576,7 @@ namespace cAlgo.Robots
 
         private void RemovePeakState(int positionId)
         {
+            _dirtyPeakState.Remove(positionId);
             try
             {
                 LocalStorage.Remove(PeakStorageKey(positionId), LocalStorageScope.Type);
@@ -555,6 +600,7 @@ namespace cAlgo.Robots
 
             _accountContextInvalid = true;
             _peakRByPosition.Clear();
+            _dirtyPeakState.Clear();
             _loaded.Clear();
             _stateInvalid.Clear();
             _manualIntervention.Clear();
