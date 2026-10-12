@@ -37,7 +37,7 @@ test('fixed USD 10 risk sizing rounds down and rechecks estimated loss', () => {
 });
 
 test('order request includes initial protection and verifies structural SL plus fill-anchored 5R TP', () => {
-  assert.match(source, /ExecuteMarketOrder\\(Direction, symbol\\.Name, volume, orderLabel,[\s\S]*?stopDistancePips, takeProfitDistancePips/);
+  assert.match(source, /ExecuteMarketOrder\(Direction, symbol\.Name, volume, orderLabel,[\s\S]*?stopDistancePips, takeProfitDistancePips/);
   assert.match(source, /ModifyPosition\(position, StructuralStopPrice, absoluteTarget/);
   assert.match(source, /SERVER_PROTECTION_READBACK_MISMATCH/);
   assert.match(source, /CloseAfterProtectionProblem\(position,/);
