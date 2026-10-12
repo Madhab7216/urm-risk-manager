@@ -1,6 +1,6 @@
 # URM cTrader Advanced Risk Manager — Stage G v1.0
 
-**Web Plugin status: diagnostic preview only; plugin order submission remains locked.** Separate native cTrader Automate prototypes now exist for one-shot Demo execution and the URM R-ladder position manager. The executor is opt-in (confirmation defaults to false); both cBots are not wired to the Web Plugin and have not been compiled in the installed cTrader environment.
+**Web Plugin status: diagnostic preview only; plugin order submission remains locked.** The older one-shot executor and stand-alone R-ladder manager remain separate Demo prototypes. A new combined **local Desktop strategy cBot**, `URMScalperLocalPro`, has been added; it implements the described M5 breakout → M1 pullback-break → Order Block retest flow, USD fixed-risk sizing and the R-ladder. Its source compiles against the published cTrader Automate SDK in GitHub Actions, but broker execution, backtest performance and live-account behaviour are not yet validated. See [`URM_SCALPER_LOCAL_PRO_GUIDE.md`](URM_SCALPER_LOCAL_PRO_GUIDE.md). Live order entry is off by default and requires two explicit switches.
 
 ## Approved risk policy
 
@@ -36,9 +36,12 @@
 - `execution-engine.mjs` — testable execution lifecycle prototype; not enabled for submission.
 - `position-manager-policy.mjs` — pure R-policy/label calculator with source/timestamp-bound tick-grid guard.
 - `cbot/URMCalibrationProbe.cs` — Demo-only, read-only platform calibration and account inventory report.
-- `cbot/URMDemoOneShotExecutor.cs` — native one-shot Demo execution prototype; explicit confirmation defaults to false and broker Demo compilation/testing is still required.
-- `URM_DEMO_ONE_SHOT_EXECUTOR_GUIDE.md` — step-by-step cBot compilation, preflight and one-shot Demo-use guide.
-- `cbot/URMRLadderPositionManager.cs` — Demo-only active R-ladder manager; requires peak-R state durability and actual broker validation.
+- `cbot/URMScalperLocalPro.cs` — combined local Desktop strategy: M5 closed-bar breakout, M1 opposing pullback break, mechanical M5 Order Block, USD fixed-risk, verified server SL/TP, R ladder and candle-colour-flip trailing proxy.
+- `cbot/URMScalperLocalPro.csproj` — isolated cTrader Automate build project; the GitHub workflow produces an importable `.algo` artifact.
+- `URM_SCALPER_LOCAL_PRO_GUIDE.md` — strategy definitions, safe installation, parameter defaults and validation limits.
+- `cbot/URMDemoOneShotExecutor.cs` — legacy native one-shot Demo execution prototype; do not run it alongside the combined Local Pro cBot.
+- `URM_DEMO_ONE_SHOT_EXECUTOR_GUIDE.md` — legacy one-shot Demo-use guide.
+- `cbot/URMRLadderPositionManager.cs` — legacy separate Demo-only R-ladder manager; do not run it alongside Local Pro for the same positions.
 - `URM_R_LADDER_MANAGER_GUIDE.md` — setup order, local storage requirement and manual-reconciliation rules.
 - `cbot/URMPositionObserver.cs` — separate read-only position observer prototype; compile status unverified.
 - `tools/validate-calibration-report.mjs` — local validator for copied report text; diagnostic only.
@@ -89,4 +92,4 @@ The suite includes report-parser tests, static safety checks for both cBot sourc
 - No partial-fill, server-confirmed SL/TP, local/Cloud restart, account-switch, or live host integration test has been performed.
 - The `maxExposure` aggregate still requires a defined authoritative exposure calculation and review of positions plus pending orders across the relevant account model.
 
-The Web Plugin remains **preview-only and hard-locked**. The separate one-shot executor and R-ladder manager are opt-in Demo prototypes, not production-ready. Run exactly one manager instance per account/symbol on local cTrader and start it before the one-shot executor. Do not use either cBot on Live or Cloud. Do not consider them validated until local C# compilation, broker-host Demo execution, SL/TP read-back, restart recovery and every relevant release gate have passed.
+The Web Plugin remains **preview-only and hard-locked**. The legacy one-shot executor and stand-alone R-ladder manager are separate Demo prototypes and must not both manage the same positions. The new `URMScalperLocalPro` is intended for local cTrader Desktop and can place Demo or explicitly enabled Live entries; however, Live is disabled by default and is not recommended until the documented Demo validation has passed. CI compilation checks API/source compatibility, not profitability or broker fills. USD 10 is an estimated price-risk target, not a guaranteed maximum realized loss.
