@@ -268,7 +268,7 @@ namespace cAlgo.Robots
 
             var executable = isBuy ? bid : ask;
             var currentR = isBuy ? (executable - entry) / rDistance : (entry - executable) / rDistance;
-            if (!double.IsFinite(currentR))
+            if (double.IsNaN(currentR) || double.IsInfinity(currentR))
             {
                 LogState(position, "CURRENT_R_INVALID", "BLOCKED", "Current R cannot be calculated safely.");
                 return;
@@ -291,6 +291,14 @@ namespace cAlgo.Robots
             }
 
             var confirmedStop = position.StopLoss.Value;
+            if (!IsOnTickGrid(confirmedStop, tickSize))
+            {
+                _manualIntervention.Add(position.Id);
+                LogState(position, "SERVER_SL_OFF_TICK_GRID", "CRITICAL",
+                    "The server-reported SL is not on the current broker TickSize grid. Management paused.");
+                return;
+            }
+
             if (peak >= TakeProfitR || currentR >= TakeProfitR)
             {
                 LogState(position, "TP_BOUNDARY_RECONCILIATION_REQUIRED", "CRITICAL",
