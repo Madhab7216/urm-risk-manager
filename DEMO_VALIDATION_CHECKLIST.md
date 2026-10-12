@@ -1,6 +1,6 @@
 # URM Stage G — Demo Validation Checklist
 
-**Status: NOT RUN / NOT VERIFIED.** This is a test plan, not a statement that the package is broker-safe. Use a dedicated Demo account only. The calibration probe refuses a Live account and never submits/modifies/closes/cancels orders.
+**Status: NOT RUN / NOT VERIFIED.** This is a test plan, not a statement that the package is broker-safe. Use a dedicated Demo account only. The calibration probe is read-only. The Web Plugin remains locked; a separate native one-shot executor is opt-in and must default to preflight-only.
 
 ## A. Build calibration probe
 
@@ -40,18 +40,34 @@
 - [ ] Do not derive a final `maxExposure` compliance result from this parser; Stage G only provides diagnostic inventory.
 - [ ] Define the supported account model's exposure aggregation in the execution-owning runtime before any submission is allowed.
 
-## E. Plugin/cBot architecture
+## E. Native one-shot executor and R-ladder manager
+
+- [ ] In local cTrader Desktop Automate, create/compile `URMRLadderPositionManager` from `cbot/URMRLadderPositionManager.cs`.
+- [ ] Check cBot log confirms Demo account, HEDGED model, exact chart symbol and `URM_PM|STARTED`.
+- [ ] Start exactly one manager instance for the account/symbol **before** starting the one-shot executor.
+- [ ] Do not use Cloud for this manager. cTrader documents `LocalStorage.Flush` as unsupported/no-op in Cloud.
+- [ ] Create/compile `URMDemoOneShotExecutor` from `cbot/URMDemoOneShotExecutor.cs`.
+- [ ] Start executor with `Confirm one-shot DEMO order=false`; verify it prints preflight-only and sends no order.
+- [ ] Only after reviewing the preflight on the intended Demo account, exact symbol, direction, structural SL, estimated risk, volume and margin, set confirmation true and Start once.
+- [ ] Verify the opened position label follows `URM1|ID=URM-...|SL=...` and that manager observes it.
+- [ ] Test +1R break-even, +2R lock to +1.7R, +3R trailing with a +2R floor, and unchanged +5R TP. Compare every step to Trade Watch.
+- [ ] Verify `URM_PM|UPDATED` follows with cTrader server read-back of the new SL and unchanged TP.
+- [ ] Test stop modification rejection, stale/no tick, missing TP, account switching, manager restart with stored peak, and missing/corrupt peak state. Ambiguous states must block and require manual reconciliation.
+- [ ] Never run two manager instances for the same account/symbol. Do not automatically retry an unknown/rejected order or SL modification.
+- [ ] Save compiler output, cTrader version, cBot logs and screenshots. Static GitHub tests are not a substitute for C# compilation or broker-host Demo testing.
+
+## F. Plugin/cBot architecture
 
 - [ ] Keep the Web Plugin's order submission hard-locked.
 - [ ] Do not assume the Plugin can read the cBot's TickSize or position snapshot through a hidden/shared runtime.
 - [ ] Select the final execution authority (recommended for safe iteration: cBot/native Algo runtime re-reads all inputs independently; Plugin remains preview-only).
 - [ ] If an external bridge is considered, complete separate architecture and threat-model review: auth, account scoping, expiry/nonce, replay prevention, durable journal, retries, outage and status reconciliation.
 
-## F. Final state
+## G. Final state
 
-- [ ] Compile the separate read-only position observer as well as the calibration probe.
+- [ ] Compile the separate read-only position observer, calibration probe, one-shot executor and R-ladder manager.
 - [ ] Test restart/recovery, account switching, late callbacks, partial fill and server-confirmed protection on Demo.
 - [ ] Attach report, logs and actual SDK/compiler results.
 - [ ] Do not promote to an execution-enabled build until all `RELEASE_GATES.md` items are signed off.
 
-**Current result: NOT RUN / NOT VERIFIED.** Stage G is diagnostic only; order submission stays disabled.
+**Current result: NOT RUN / NOT VERIFIED.** The Web Plugin is diagnostic-only and order-locked. Native cBot order submission is only an opt-in Demo prototype and remains unverified until the checklist is completed.
