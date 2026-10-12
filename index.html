@@ -282,8 +282,12 @@ function renderDiagnosticsSummary() {
   if(state.quote && quoteAge>=0 && quoteAge<MAX_QUOTE_AGE_MS && Date.now()-state.lastQuoteReceivedAt<MAX_QUOTE_AGE_MS)
     put('diagQuote',`${state.symbol?.name??'Symbol'}: Bid ${fmtPrice(state.quote.bid)} / Ask ${fmtPrice(state.quote.ask)} (fresh)`,'good');
   else {
-    const reason=d.lastQuoteEvent?.reason ? ` (${d.lastQuoteEvent.reason})` : '';
-    put('diagQuote',`${d.quoteSubscription}; ${d.quoteStatus}${reason}; rejected/invalid events: ${d.quoteRejectedCount}`,'warn');
+    const diag=d.lastQuoteEvent;
+    const reason=diag?.reason ? ` (${diag.reason})` : '';
+    const eventKeys=Array.isArray(diag?.eventKeys) ? diag.eventKeys.slice(0,10).join(', ') : '';
+    const timestampField=diag?.timestampField ?? 'missing';
+    const eventShape=diag ? `; timestamp field: ${timestampField}; keys: ${eventKeys || 'not available'}` : '';
+    put('diagQuote',`${d.quoteSubscription}; ${d.quoteStatus}${reason}${eventShape}; rejected/invalid events: ${d.quoteRejectedCount}`,'warn');
   }
 
   put('diagTickGrid','No trusted TickSize contract; execution locked','warn');
@@ -652,10 +656,10 @@ function subscribeSelectedSymbol() {
   state.sdkDiagnostics.quoteSubscription='Subscription request pending';
   state.sdkDiagnostics.quoteStatus='Waiting for quote event';
   renderDiagnosticsSummary();
-  const doSubscribe=()=>subscribeQuotes(state.adapter,{symbolId:[newId],enableStaleQuotesFiltering:true,subscribeToSpotTimestamp:true}).pipe(take(1)).subscribe({
+  const doSubscribe=()=>subscribeQuotes(state.adapter,{symbolId:[newId],enableStaleQuotesFiltering:false,subscribeToSpotTimestamp:true}).pipe(take(1)).subscribe({
     next:r=>{
       state.subscribedSymbolId=newId;
-      state.sdkDiagnostics.quoteSubscription='Acknowledged; waiting for first quote event';
+      state.sdkDiagnostics.quoteSubscription='Acknowledged; timestamp requested; waiting for first quote event';
       log({quoteSubscription:r,symbol:state.symbol.name});
       renderDiagnosticsSummary();
     },
